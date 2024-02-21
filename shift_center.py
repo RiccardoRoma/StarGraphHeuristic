@@ -1,7 +1,7 @@
 from typing import List
 import numpy as np
 from qiskit import QuantumCircuit
-from qiskit.circuit.library import SXGate, SGate
+from qiskit.circuit.library import h
 
 
 def shift_centers(center_in: int, center_fin: int, circ: QuantumCircuit) -> QuantumCircuit:
