@@ -90,7 +90,7 @@ Picked_Stars=[]
 MSQ=[]
 MSG=[]
 
-def calculate_gate_ss(G):
+def calculate_msq(G):
     """
     Calculates the gates using the SS method on the given graph G.
     """
@@ -286,7 +286,7 @@ def main():
     edges_list = [(0, 4), (1, 6), (2, 3), (3, 7), (4, 9), (5, 6), (6, 8), (7, 9), (8, 9)]
     
     # calculate_gate_ss(generate_ibm_graph(nodes_list, edges_list, use_barabasi=False))
-    calculate_gate_ss(generate_random_graph(10, 0.1, use_barabasi=False))
+    calculate_msq(generate_random_graph(10, 0.1, use_barabasi=False))
     # for i in range(len(MS)):   
     #     draw_graph(MS[i])
 
