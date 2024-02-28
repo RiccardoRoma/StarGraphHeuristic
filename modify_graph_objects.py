@@ -18,22 +18,22 @@ import csv
 import concurrent.futures 
 import time
 
-# def generate_ibm_graph(nodes_list, edges_list, use_barabasi):
+def generate_ibm_graph(nodes_list, edges_list, use_barabasi):
     
-#         # Create a graph G
-#         G = nx.Graph()
+        # Create a graph G
+        G = nx.Graph()
         
-#         # Add nodes to the graph
-#         G.add_nodes_from(nodes_list)
+        # Add nodes to the graph
+        G.add_nodes_from(nodes_list)
         
-#         # Add edges to the graph
-#         G.add_edges_from(edges_list)
+        # Add edges to the graph
+        G.add_edges_from(edges_list)
         
-#         plt.figure()
-#         nx.draw(G, node_color='lightgreen', 
-#                 with_labels=True, 
-#                 node_size=500)
-#         return G
+        plt.figure()
+        nx.draw(G, node_color='lightgreen', 
+                with_labels=True, 
+                node_size=500)
+        return G
 
 def draw_graph(graph, node_color='yellow', layout="circular"):
     """
@@ -69,6 +69,20 @@ def merging_two_graphs(G1,G2,t:tuple):
         if node != t[0]:
             G3.add_edge(t[0], node, weight=1)  # Adding edge weight of 1      
     return G3
+
+def get_graph_center(G):
+    """
+    Gives the center of the graph G, if it is a bell pair, it would randomly give you one node. 
+    """   
+    degrees = dict(G.degree())
+    
+    if not degrees:
+        return None  # Return None for empty graph
+    
+    max_degree_node = max(degrees, key=degrees.get)
+    max_degree = degrees[max_degree_node]
+    
+    return max_degree_node
     
     
 
@@ -79,6 +93,8 @@ def merging_two_graphs(G1,G2,t:tuple):
 # # edges_list = [(0, 4), (1, 6), (2, 3), (3, 7), (4, 9), (5, 6), (6, 8), (7, 9), (8, 9)]
 
 # nodes_list = [1, 2, 3, 4]
+
+# edges_list=[(1,2)]
    
 # edges_list = [(1, 2), (1, 3), (1, 4)]
 
@@ -87,6 +103,7 @@ def merging_two_graphs(G1,G2,t:tuple):
 # edges_list1 = [(5, 6), (5, 7), (5, 8)]
 
 # G1=generate_ibm_graph(nodes_list, edges_list, use_barabasi=False)
+# ab=get_graph_center(G1)
 # G2=generate_ibm_graph(nodes_list1, edges_list1, use_barabasi=False)
 # update_center_graph(G1, 3)
 # draw_graph(G1)
