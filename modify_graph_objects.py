@@ -50,7 +50,7 @@ def draw_graph(graph, node_color='yellow', layout="circular"):
     plt.show()
 
 
-def update_center_graph(G,new_center):
+def update_graph_center(G,new_center):
     """
     shifts the center of the the graph
     """
