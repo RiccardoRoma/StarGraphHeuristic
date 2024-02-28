@@ -69,17 +69,17 @@ def generate_random_graph(n, p, use_barabasi):
 #                 node_size=500)
 #         return G
 
-def draw_graph(graph, layout="circular"):
+def draw_graph(graph, node_color='yellow', layout="circular"):
     """
     Draw the given graph using NetworkX and Matplotlib.
     """
     if layout == "circular":
-        pos = circular_layout(graph)
+        pos = nx.circular_layout(graph)
     else:
         pos = nx.spring_layout(graph)  # Default to spring layout if layout is not circular
 
     plt.figure(figsize=(8, 8))
-    nx.draw(graph, pos, with_labels=True, node_color='yellow', node_size=500, font_size=10, font_color='black', font_weight='bold')
+    nx.draw(graph, pos, with_labels=True, node_color=node_color, node_size=500, font_size=10, font_color='black', font_weight='bold')
     plt.title("Graph Visualization")
     plt.show()
 
