@@ -89,6 +89,7 @@ MS=[] # a list to store all small stars and merging sequence.
 Picked_Stars=[]
 MSQ=[]
 MSG=[]
+merging_edges_list=[]
 
 def calculate_msq(G):
     """
@@ -191,6 +192,7 @@ def calculate_msq(G):
                 
                 # Find a common node in SG[0], SG[i] at random
                 common_edge = random.choice(common_edges)
+                merging_edges_list.append(common_edge)
                 print("common edge is", common_edge)
                 
             
@@ -275,7 +277,7 @@ def calculate_msq(G):
             sid_total_gates += MSQ[pq].number_of_nodes()-2
         
     
-    return MSQ, sid_total_gates
+    return merging_edges_list, MSQ, sid_total_gates
 
 
 def main():
