@@ -7,7 +7,7 @@ Created on Fri Jan 19 09:49:50 2024
 
 The below code is to produce random graphs according to Erdos-Renyi and Barabasi Albert models and save them.
 One can also uncomment the last part of the code, import the saved graphs and plot them. 
-Written for the project with prof. Althaus in Mainz
+Written for the qiskit project (Tutzing).
 """
 
 import networkx as nx
@@ -36,34 +36,53 @@ def generate_random_graph(n, p, use_barabasi):
                 if random.random() < p:
                     G.add_edge(*e, weight=1)
     return G
+ 
+    
 
-def save_random_graph(graph, n, p, use_barabasi, save_path='/Users/thaslimjaglurbasheer/Documents/Siddhu/graphs_generation/Saved_random_graphs'):
+def save_random_graph(graph, n, p, use_barabasi, copy_number, save_path='/Users/thaslimjaglurbasheer/Documents/Siddhu/graphs_generation/Saved_small_random_graphs'):
     graph_type = "barabasi" if use_barabasi else "erdos_renyi"
-    filename = os.path.join(save_path, f'random_graph_n{n}_p{p:.1f}_{graph_type}.pkl')
+    # filename = os.path.join(save_path, f'random_graph_n{n}_p{p:.1f}_{graph_type}.pkl')
+    filename = os.path.join(save_path, f'random_graph_n{n}_p{p:.1f}_{graph_type}_copy_{copy_number}.pkl')
     with open(filename, 'wb') as file:
         pickle.dump(graph, file)
 
-# Generate and save random graphs
-use_barabasi=False
-save_directory = '/Users/thaslimjaglurbasheer/Documents/Siddhu/graphs_generation/Saved_random_graphs'
-for n in range(10, 1001, 10):
-    for p in [0.1 * i for i in range(1, 11)]: # Change this for Barabasi, p is m
+            
+# Generate and save random graphs for multiple copies for a given n and p
+
+use_barabasi = False
+save_directory = '/Users/thaslimjaglurbasheer/Documents/Siddhu/graphs_generation/Saved_small_random_graphs'
+num_copies = 10  # Number of copies for each (n, p) combination
+
+for n in range(10, 21, 5):
+    for p in [0.1 * i for i in range(1, 11)]:  # Change this for Barabasi, p is m
+        for copy_number in range(1, num_copies + 1):
             random_graph = generate_random_graph(n, p, use_barabasi)
-            save_random_graph(random_graph, n, p, use_barabasi, save_directory)
+            save_random_graph(random_graph, n, p, use_barabasi, copy_number, save_directory)
+            
+            
 
-# Read the saved file and plot the graph
 
-# def read_random_graph(filename):
-#     with open(filename, 'rb') as file:
-#         loaded_graph = pickle.load(file)
-#     return loaded_graph
+ # Read the saved file and plot the graph
 
-# # Specify the filename of the saved graph you want to read
-# filename_to_read = '/Users/thaslimjaglurbasheer/Documents/Siddhu/graphs_generation/Saved_random_graphs/random_graph_n20_p0.4_erdos_renyi.pkl'  # Adjust the filename as needed
+def read_random_graph(n, p, copy_number, use_barabasi=False, save_path='/Users/thaslimjaglurbasheer/Documents/Siddhu/graphs_generation/Saved_small_random_graphs'):
+    graph_type = "barabasi" if use_barabasi else "erdos_renyi"
+    filename_to_read = os.path.join(save_path, f'random_graph_n{n}_p{p:.1f}_{graph_type}_copy_{copy_number}.pkl')
+    
+    with open(filename_to_read, 'rb') as file:
+        loaded_graph = pickle.load(file)
+    
+    return loaded_graph
 
-# # Read the saved graph
-# loaded_graph = read_random_graph(filename_to_read)
+# Specify the values for n, p, and copy number
+desired_n = 10
+desired_p = 0.2
+desired_copy_number = 3
 
-# # Plot the loaded graph
-# nx.draw(loaded_graph, with_labels=True, font_weight='bold')
-# plt.show()
+# Read the particular graph
+loaded_graph = read_random_graph(desired_n, desired_p, desired_copy_number)
+
+# Plot the loaded graph
+plt.figure()
+nx.draw(loaded_graph, with_labels=True, font_weight='bold', node_color='yellow')
+plt.title(f'Graph for n={desired_n}, p={desired_p:.1f}, Copy {desired_copy_number}')
+plt.show()
