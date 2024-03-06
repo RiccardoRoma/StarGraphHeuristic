@@ -20,4 +20,5 @@ dependencies:
       - qiskit-aer==0.13.3
       - qiskit-ibm-runtime==0.20.0
       - networkx==3.2.1
+      - pylatexenc==2.10
 
