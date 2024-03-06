@@ -19,6 +19,8 @@ with open(fname, "rb") as f:
 # Calculate subgraphs and merging sequence
 out = calculate_msq(G, show_status=False)
 subgraphs = out[1]
+for o in out:
+    print(o)
 
 
 c = QuantumCircuit(len(G.nodes()))
