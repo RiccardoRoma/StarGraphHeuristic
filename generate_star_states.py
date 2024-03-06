@@ -25,19 +25,17 @@ def get_leaf_qubits_from_edges(edges_in: Sequence[Tuple[int, int]],
     #leaf_list = np.asarray(leaf_list)
     return leaf_list
 
-def generate_star_state(G: Graph, circ: QuantumCircuit, qubit_map: list) -> QuantumCircuit:
+def generate_star_state(G: Graph, circ: QuantumCircuit) -> QuantumCircuit:
     # assume that circ has one single QuantumRegister with all qubits
     center_index = mgo.get_graph_center(G)
 
     # initialize all used qubits in |+>
     for q in G.nodes():
-        if q not in qubit_map:
-            raise ValueError("Graph node {} not found in qubit map {}".format(q, qubit_map))
-        circ.h(qubit_map.index(q))
+        circ.h(q)
 
     # apply CZ gates according to the edges in the graph object
     for e in G.edges():
-        circ.cz(qubit_map.index(e[0]), qubit_map.index(e[1]))
+        circ.cz(e[0], e[1])
 
 # def generate_star_states(edges_in: Sequence[Tuple[int, int]],
 #                          star_centers: Sequence[int],
