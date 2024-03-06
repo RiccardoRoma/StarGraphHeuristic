@@ -91,7 +91,7 @@ MSQ=[]
 MSG=[]
 merging_edges_list=[]
 
-def calculate_msq(G):
+def calculate_msq(G, show_status: bool = True):
     """
     Calculates the gates using the SS method on the given graph G.
     """
@@ -113,18 +113,20 @@ def calculate_msq(G):
     while MG[l].number_of_nodes() > 0:
         
         if nx.is_empty(MG[l])==True:
-            print("I am here")
-            plt.figure(l + 100)
-            nx.draw(MG[l], node_color='lightblue', 
-                    with_labels=True, 
-                    node_size=500)
+            if show_status:
+                print("I am here")
+                plt.figure(l + 100)
+                nx.draw(MG[l], node_color='lightblue', 
+                        with_labels=True, 
+                        node_size=500)
             for node in MG[l].nodes():
                 SG[l + 1] = nx.Graph()
                 SG[l + 1].add_node(node)
-                plt.figure(l + 150)
-                nx.draw(SG[l + 1], node_color='lightpink', 
-                        with_labels=True, 
-                        node_size=500)
+                if show_status:
+                    plt.figure(l + 150)
+                    nx.draw(SG[l + 1], node_color='lightpink', 
+                            with_labels=True, 
+                            node_size=500)
                 l += 1
             break
         else:
@@ -135,12 +137,13 @@ def calculate_msq(G):
             MG[l + 1] = MG[l].copy()
             # MG[l + 1].remove_node(a[0])
             MG[l + 1].remove_nodes_from(SG[l].nodes())
-            plt.figure(l+50)
-            # if l==0:
-            #     MS.append(SG[l].copy())
-            nx.draw(SG[l], node_color='lightpink', 
-                    with_labels=True, 
-                    node_size=500)
+            if show_status:
+                plt.figure(l+50)
+                # if l==0:
+                #     MS.append(SG[l].copy())
+                nx.draw(SG[l], node_color='lightpink', 
+                        with_labels=True, 
+                        node_size=500)
             tn.extend(list(SG[l].nodes()))
             edu.extend(list(SG[l].edges()))
     
@@ -158,7 +161,8 @@ def calculate_msq(G):
 
     MSG = Picked_Stars.copy()
     # print("MSG is ",MSG)
-    print("SG is",SG)
+    if show_status:
+        print("SG is",SG)
     
     
 
@@ -174,12 +178,14 @@ def calculate_msq(G):
             if i == 0:
                 continue
             common_edges = [e for e in G.edges if set(e).intersection(SG[0].nodes()) and set(e).intersection(SG[i].nodes())]
-            print(common_edges)
-            print("I am here and loop number is ",i)
+            if show_status:
+                print(common_edges)
+                print("I am here and loop number is ",i)
             
                               
             if len(common_edges)!=0:
-                print("I am here second time and loop number is ",i)
+                if show_status:
+                    print("I am here second time and loop number is ",i)
                 common_edge_found = True
                 common_edge_index = i
                 
@@ -193,19 +199,22 @@ def calculate_msq(G):
                 # Find a common node in SG[0], SG[i] at random
                 common_edge = random.choice(common_edges)
                 merging_edges_list.append(common_edge)
-                print("common edge is", common_edge)
+                if show_status:
+                    print("common edge is", common_edge)
                 
             
                 # Assign new star center nodes to each each graph
                 if SG[0].has_node(common_edge[0]):
                     cn_0 = common_edge[0]
                     cn_i = common_edge[1]
-                    print("common node of cn_i is", cn_i)
+                    if show_status:
+                        print("common node of cn_i is", cn_i)
         
                 else:
                     cn_0 = common_edge[1]
                     cn_i = common_edge[0]
-                    print("common node of cn_i is", cn_i)
+                    if show_status:
+                        print("common node of cn_i is", cn_i)
                     
                 
                 if cn_0 == max(dict(SG[0].degree()).items(), key=lambda x: x[1])[0] or len(SG[0].nodes()) == 2:
@@ -220,11 +229,13 @@ def calculate_msq(G):
                         if node != cn_0:
                             SG[0].add_edge(cn_0, node, weight=1)  # Adding edge weight of 1
                     sid_total_gates += 2 # For shifting SG[0] star (two H gates)
-                    draw_graph(SG[0])
+                    if show_status:
+                        draw_graph(SG[0])
                     
             
                 if cn_i == max(dict(SG[i].degree()).items(), key=lambda x: x[1])[0] or len(SG[i].nodes()) == 2:
-                    print("shift is not required for cn_i")
+                    if show_status:
+                        print("shift is not required for cn_i")
                     pass
                
                 else:
@@ -236,7 +247,8 @@ def calculate_msq(G):
                         if node != cn_i:
                             SG[i].add_edge(cn_i, node, weight=1)  # Adding edge weight of 1
                     sid_total_gates += 2 # For shifting SG[0] star (two H gates)
-                    draw_graph(SG[i])
+                    if show_status:
+                        draw_graph(SG[i])
                     
                 
                 # Merging the two stars                   
@@ -245,7 +257,8 @@ def calculate_msq(G):
                         SG[0].add_edge(cn_0, node, weight=1)  # Adding edge weight of 1
                 
                 sid_total_gates += 1 # For merging (one CNOT gate)
-                draw_graph(SG[0])
+                if show_status:
+                    draw_graph(SG[0])
                 
                 # Deleting the MSG[i] star as it is merged to MSG[0]
                 # SG.remove(SG[i])
@@ -258,7 +271,8 @@ def calculate_msq(G):
             
           
         else:
-            print("no common edges found in this iteration")
+            if show_status:
+                print("no common edges found in this iteration")
             break
     
 
