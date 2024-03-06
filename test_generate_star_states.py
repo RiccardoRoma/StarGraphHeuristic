@@ -17,13 +17,12 @@ with open(fname, "rb") as f:
     G = pickle.load(f)
 
 # Calculate subgraphs and merging sequence
-out = calculate_msq(G)
+out = calculate_msq(G, show_status=False)
 subgraphs = out[1]
 
 
-qubit_map = list(G.nodes())
 c = QuantumCircuit(len(G.nodes()))
-generate_star_states.generate_star_state(subgraphs[0], c, qubit_map)
+generate_star_states.generate_star_state(subgraphs[0], c)
 
 print(c.draw(output="mpl"))
 
