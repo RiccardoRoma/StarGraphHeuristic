@@ -17,7 +17,7 @@ def create_ghz_state_circuit(graph_file: str) -> Tuple[QuantumCircuit, Graph]:
     with open(graph_file, "rb") as f:
         G = pickle.load(f)
 
-    # run calculate_msq form qkit_input_graph.py
+    # run calculate_msq form qiskit_input_graph.py
         # calculates the list of subgraphs in sequential merging order (MSQ) 
         # and at what edges we should merge the graphs (merging_edges_list)
     merging_edges_list, MSQ, sid_total_gates = calculate_msq(G, show_status=False)

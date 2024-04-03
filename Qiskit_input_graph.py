@@ -67,7 +67,7 @@ def generate_random_graph(n, p, use_barabasi):
 #         nx.draw(G, node_color='lightgreen', 
 #                 with_labels=True, 
 #                 node_size=500)
-#         return G
+#         return G 
 
 def draw_graph(graph, node_color='yellow', layout="circular"):
     """
