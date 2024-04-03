@@ -13,13 +13,13 @@ def merge_graphs(circ: QuantumCircuit, C1: int, C2: int, cls_bit_cnt: int, edge_
     circ.cnot(C1, C2)
     
     # Assume C1 is the target center
-    meas= circ.measure([C1], [cls_bit_cnt])
-
+    circ.measure([C1], [cls_bit_cnt])
+    m_0=  ClassicalRegister(1, "m0")
+    leaf_qubits= get_leaf_qubits_from_edges(edge_list_G1, C1)
     # Applying Pauli corrections
-    if meas==1:
-        leaf_qubits= get_leaf_qubits_from_edges(edge_list_G1, C1)
+    with circ.if_test((m_0, 1)):
+        
         for i in leaf_qubits:
             circ.Z[i]
-    else:
-        None
+
     return circ
