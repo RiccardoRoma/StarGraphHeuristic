@@ -37,6 +37,7 @@ def generate_star_state(G: Graph, circ: QuantumCircuit) -> QuantumCircuit:
     for e in G.edges():
         circ.cz(e[0], e[1])
 
+    return circ
 # def generate_star_states(edges_in: Sequence[Tuple[int, int]],
 #                          star_centers: Sequence[int],
 #                          add_barries: bool = False) -> QuantumCircuit:
