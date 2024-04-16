@@ -69,7 +69,7 @@ def generate_random_graph(n, p, use_barabasi):
 #                 node_size=500)
 #         return G 
 
-def draw_graph(graph, node_color='yellow', layout="circular"):
+def draw_graph(graph, node_color='yellow', layout="circular", show: bool = True):
     """
     Draw the given graph using NetworkX and Matplotlib.
     """
@@ -81,20 +81,27 @@ def draw_graph(graph, node_color='yellow', layout="circular"):
     plt.figure(figsize=(8, 8))
     nx.draw(graph, pos, with_labels=True, node_color=node_color, node_size=500, font_size=10, font_color='black', font_weight='bold')
     plt.title("Graph Visualization")
-    plt.show()
+    if show:
+        plt.show()
 
 
 
-MS=[] # a list to store all small stars and merging sequence.  
-Picked_Stars=[]
-MSQ=[]
-MSG=[]
-merging_edges_list=[]
+# MS=[] # a list to store all small stars and merging sequence.  
+# Picked_Stars=[]
+# MSQ=[]
+# MSG=[]
+# merging_edges_list=[]
 
 def calculate_msq(G, show_status: bool = True):
     """
     Calculates the gates using the SS method on the given graph G.
     """
+    MS=[] # a list to store all small stars and merging sequence.  
+    Picked_Stars=[]
+    MSQ=[]
+    MSG=[]
+    merging_edges_list=[]
+    
     MG = {}
     SG = {}
     OPSG = {}
