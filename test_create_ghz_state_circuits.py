@@ -42,7 +42,7 @@ for i in range(len(fname_vec)):
     overlap_ghz = np.abs(curr_state.inner(ghz_state))
     overlaps.append(copy.deepcopy(overlap_ghz))
     print("overlap with ghz state {}".format(overlap_ghz))
- 
+    print("measurement outcome {}".format(curr_result.data()['counts']))
     # draw initial graph
     draw_graph(curr_init_graph, show=False)
  
@@ -51,8 +51,4 @@ for i in range(len(fname_vec)):
 
     # draw final star state graph
     draw_graph(curr_star_graph)
-
-for i in range(len(overlaps)):
-    print("overlap: {}".format(overlaps[i]))
-    print(sim_results[i].data()['counts'])
     print("------------------------------")
