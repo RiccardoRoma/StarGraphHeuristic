@@ -59,9 +59,12 @@ def merge_graphs(circ: QuantumCircuit, C1: int, graph1: Graph, C2: int, graph2: 
         #     for i in leaf_qubits_g2:
         #         circ.z(i)
         
-        for i in leaf_qubits_g2:
-            with circ.if_test((curr_meas, 1)):
-              circ.z(i)
+        with circ.if_test((curr_meas, 1)):
+            for i in leaf_qubits_g2:
+                circ.z(i)
+            if reuse_meas_qubit:
+                # flip qubit into state 0 if it was projected to 1 and qubit is resused 
+                circ.x(C2)
         # update classical bit for measurements
         cls_bit_cnt += 1
         # include measured qubit into merged graph state again (if desired)
