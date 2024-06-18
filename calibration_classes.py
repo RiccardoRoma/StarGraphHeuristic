@@ -15,8 +15,12 @@ from qiskit_aer.primitives import Estimator as AerEstimator
 from qiskit_aer.noise import NoiseModel
 
 from qiskit.transpiler import PassManager
+from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
+ 
 
 import qiskit_ibm_runtime as qir
+from qiskit_ibm_provider import IBMProvider
+from dotenv import load_dotenv
 
 
 
@@ -505,18 +509,41 @@ def get_estimator(est_cal: EstimatorCalibration,
 
 class PresetPassManagerCalibration(Calibration):
     def __init__(self,
-                 opimization_level: int = 0,
-                 backend_str: Union[str, None] = None):
+                 backend_str: str,
+                 optimization_level: int = 0,
+                 initial_layout: Union[List[int], None]=None,
+                 layout_method: Union[str, None] = None,
+                 routing_method: Union[str, None] = None,
+                 translation_method: Union[str, None] = None,
+                 scheduling_method: Union[str, None] = None,
+                 approximation_degree: float = 1.0,
+                 seed_transpile: Union[int, None] = None,
+                 unitary_synthesis_method: str = 'default',
+                 unitary_synthesis_plugin_config: Union[dict, None] = None):
         super().__init__("PresetPassManagerCalibration")
-        if (opimization_level < 0) or (opimization_level > 3):
-            raise ValueError("optimization level must be either 0, 1, 2 or 3!")
         
-        self.optimization_level = opimization_level
+        self._validate_inputs(optimization_level, layout_method, routing_method, translation_method, scheduling_method, approximation_degree)
+        
+        self.optimization_level = optimization_level
         self.backend_str = backend_str
-                
+        self.initial_layout = initial_layout
+        self.layout_method = layout_method
+        self.routing_method = routing_method
+        self.translation_method = translation_method
+        self.scheduling_method = scheduling_method
+        self.approximation_degree = approximation_degree
+        self.seed_transpile = seed_transpile
+        self.unitary_synthesis_method = unitary_synthesis_method
+        self.unitary_synthesis_plugin_config = unitary_synthesis_plugin_config
+    
     def __repr__(self) -> str:
-        out = "PresetPassManagerCalibration(optimization_level={}, backend_str={})".format(self.optimization_level, self.backend_str)
 
+        string_list = []
+        for k, v in self.__dict__.items():
+            if k != "name":
+                string_list.append(f"{k}={v}")
+
+        out = "PresetPassManagerCalibration(%s)" % ", ".join(string_list)
         return out
 
     def to_yaml(self,
@@ -542,24 +569,93 @@ class PresetPassManagerCalibration(Calibration):
         header = []
         data = []
 
-        header.append("optimization_level")
-        data.append(self.optimization_level)
-        header.append("backend_str")
-        data.append(self.backend_str)
-
+        for k, v in self.__dict__.items():
+            if k != "name":
+                header.append(k)
+                data.append(v)
         return (header, data)
+    
+    def _validate_inputs(self,
+                         optimization_level: int = 0,
+                         layout_method: Union[str, None] = None,
+                         routing_method: Union[str, None] = None,
+                         translation_method: Union[str, None] = None,
+                         scheduling_method: Union[str, None] = None,
+                         approximation_degree: float = 1.0):
+        if not isinstance(optimization_level, int):
+            raise ValueError("Optimization level must be one of the integers 0, 1, 2, 3!")
+        
+        if (optimization_level < 0) or (optimization_level > 3):
+            raise ValueError("optimization level must be either 0, 1, 2 or 3!")
+        
+        valid_layout_methods = ['trivial', 'dense', 'sabre']
+        if layout_method is not None:
+            if layout_method not in valid_layout_methods:
+                raise ValueError("Layout method {} is invalid! Method must be one of the valid strings: {}!".format(layout_method, valid_layout_methods))
+
+        valid_routing_methods = ['basic', 'lookahead', 'stochastic', 'sabre', 'none']
+        if routing_method is not None:
+            if routing_method not in valid_routing_methods:
+                raise ValueError("Routing method {} is invalid! Method must be one of the valid strings: {}!".format(routing_method, valid_routing_methods))
+
+        valid_translation_methods = ['translator', 'synthesis']
+        if translation_method is not None:
+            if translation_method not in valid_translation_methods:
+                 raise ValueError("Translation method {} is invalid! Method must be one of the valid strings: {}!".format(translation_method, valid_translation_methods))
+
+        
+        valid_scheduling_methods = ['alap', 'asap']
+        if scheduling_method is not None:
+            if scheduling_method not in valid_scheduling_methods:
+                 raise ValueError("Scheduling method {} is invalid! Method must be one of the valid strings: {}!".format(scheduling_method, valid_scheduling_methods))
+                
+        if (approximation_degree > 1.0) or (approximation_degree < 0.0):
+            raise ValueError("Approximation degree {} is invalid! Must be within the interval [0.0, 1.0].".format(approximation_degree))
+        if not isinstance(approximation_degree, float):
+            raise ValueError("Approximation degree must be a float number within [0.0, 1.0]!")
+        
             
 def get_PresetPassManagerCalibration_from_dict(cal_dict: dict) -> PresetPassManagerCalibration:
 
-    opt_lvl = cal_dict.pop("optimization_level", None)
+    opt_lvl = cal_dict.get("optimization_level", None)
     if opt_lvl is None:
-        raise ValueError("Could not retrieve optimization level from dictionary!")
+        print("Could not retrieve optimization level! Set it to default value 0")
+        opt_lvl = 0
 
-    backend_str = cal_dict.pop("backend_str", None)
+    backend_str = cal_dict.get("backend_str", None)
     if backend_str is None:
         raise ValueError("Could not retrieve backend string from dictionary!")
-    
-    return PresetPassManagerCalibration(opt_lvl, backend_str=backend_str)
+
+    initial_layout = cal_dict.get("initial_layout", None)
+    layout_method = cal_dict.get("layout_method", None)
+    routing_method = cal_dict.get("routing_method", None)
+    translation_method = cal_dict.get("translation_method", None)
+    scheduling_method = cal_dict.get("scheduling_method", None)
+    approximation_degree = cal_dict.get("approximation_degree", None)
+    if approximation_degree is None:
+        print("Could not retrieve approximation degree! Set it to default value 1.0")
+        approximation_degree=1.0
+
+    seed_transpile = cal_dict.get("seed_transpile", None)
+
+    unitary_synthesis_method = cal_dict.get("unitary_synthesis_method", None)
+    if unitary_synthesis_method is None:
+        print("Could not retrieve unitary synthesis method! Set it to default")
+        unitary_synthesis_method = "default"
+
+    unitary_synthesis_plugin_config = cal_dict.get("unitary_synthesis_plugin_config", None)
+
+    return PresetPassManagerCalibration(backend_str, 
+                                        optimization_level=opt_lvl, 
+                                        initial_layout=initial_layout, 
+                                        layout_method=layout_method, 
+                                        routing_method=routing_method, 
+                                        translation_method=translation_method,
+                                        scheduling_method=scheduling_method, 
+                                        approximation_degree=approximation_degree,
+                                        seed_transpile=seed_transpile,
+                                        unitary_synthesis_method=unitary_synthesis_method,
+                                        unitary_synthesis_plugin_config=unitary_synthesis_plugin_config)
 
 def get_PresetPassManagerCalibration_from_yaml(fname: str) -> PresetPassManagerCalibration:
     
@@ -594,5 +690,25 @@ def get_PresetPassManagerCalibration_from_pickle(fname: str) -> PresetPassManage
 
 ## To-Do: This function still needs to be implemented
 def get_passmanager(pm_cal: PresetPassManagerCalibration) -> PassManager:
-    raise NotImplementedError
+    # load IBM Quantum credentials
+    load_dotenv()
+    ibmq_api_token = os.environ["TOKEN"]
+    ibmq_hub = os.environ["HUB"]
+    ibmq_group = os.environ["GROUP"]
+    ibmq_project = "multiflavorschwi"
+    # load backend from backend string
+    provider = IBMProvider(token=ibmq_api_token, instance=f"{ibmq_hub}/{ibmq_group}/{ibmq_project}")
+    backend = provider.get_backend(pm_cal.backend_str)
+    #raise NotImplementedError
+    return generate_preset_pass_manager(optimization_level=pm_cal.optimization_level, 
+                                        backend=backend,
+                                        initial_layout=pm_cal.initial_layout,
+                                        layout_method=pm_cal.layout_method,
+                                        routing_method=pm_cal.routing_method,
+                                        translation_method=pm_cal.translation_method,
+                                        scheduling_method=pm_cal.scheduling_method,
+                                        approximation_degree=pm_cal.approximation_degree,
+                                        seed_transpiler=pm_cal.seed_transpile,
+                                        unitary_synthesis_method=pm_cal.unitary_synthesis_method,
+                                        unitary_synthesis_plugin_config=pm_cal.unitary_synthesis_plugin_config)
 ##
