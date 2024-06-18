@@ -8,12 +8,11 @@ from typing import Sequence, Tuple
 import os
 import create_ghz_state_circuit as cgsc
 import calibration_classes as cal
-from qiskit.quantum_info import Statevector
-from qiskit_aer import StatevectorSimulator
 import copy
 from dotenv import load_dotenv
 from qiskit_ibm_provider import IBMProvider
 from qiskit_ibm_runtime import QiskitRuntimeService, Session, Options
+from qiskit_ibm_runtime import Estimator
 
 # Define what estimator and passmanager calibration should be used
 cal_file = "example_calibration.yaml"
@@ -55,13 +54,14 @@ observalbe = None
 
 # transpile circuit with passmanager
 transp_circ = pass_manager.run(curr_circ)
+isa_observable = observalbe.apply_layout(transp_circ.layout)
 
 ## To-Do: This still needs to be implemented
 with Session(service, backend=pm_cal.backend_str) as session:
     # create estimator from calibration
     estimator = cal.get_estimator(est_cal, session=session)
     # run circuit and observable on backend
-    job = estimator.run(transp_circ, observalbe)
+    job = estimator.run(transp_circ, isa_observable)
     res = job.result()
 
 # save the result and all calibration data, graph, transpiled circuit, etc. in the result dir
