@@ -11,6 +11,8 @@ import yaml
 from qiskit.primitives import BaseEstimator
 from qiskit.primitives import Estimator as TerraEstimator
 from qiskit.primitives import BackendEstimator as BackendEstimator
+from qiskit.providers import BackendV1, BackendV2
+from qiskit_ibm_runtime.fake_provider import FakeManilaV2
 from qiskit_aer.primitives import Estimator as AerEstimator
 from qiskit_aer.noise import NoiseModel
 
@@ -699,18 +701,10 @@ def get_PresetPassManagerCalibration_from_pickle(fname: str) -> PresetPassManage
 
     return pm_cal
 
-## To-Do: This function still needs to be implemented
 def get_passmanager(pm_cal: PresetPassManagerCalibration) -> PassManager:
-    # load IBM Quantum credentials
-    load_dotenv()
-    ibmq_api_token = os.environ["TOKEN"]
-    ibmq_hub = os.environ["HUB"]
-    ibmq_group = os.environ["GROUP"]
-    ibmq_project = "multiflavorschwi"
-    # load backend from backend string
-    provider = IBMProvider(token=ibmq_api_token, instance=f"{ibmq_hub}/{ibmq_group}/{ibmq_project}")
-    backend = provider.get_backend(pm_cal.backend_str)
-    #raise NotImplementedError
+    # load qiskit backend
+    backend = get_backend(pm_cal.backend_str)
+    # return preset passmanager
     return generate_preset_pass_manager(optimization_level=pm_cal.optimization_level, 
                                         backend=backend,
                                         initial_layout=pm_cal.initial_layout,
@@ -722,4 +716,21 @@ def get_passmanager(pm_cal: PresetPassManagerCalibration) -> PassManager:
                                         seed_transpiler=pm_cal.seed_transpile,
                                         unitary_synthesis_method=pm_cal.unitary_synthesis_method,
                                         unitary_synthesis_plugin_config=pm_cal.unitary_synthesis_plugin_config)
-##
+
+def get_backend(backend_str: str) -> Union[BackendV1, BackendV2]:
+    if "fake" in backend_str:
+        # use a fake providers backend to test simulation on a local run
+        if backend_str == "fake_algiers":
+            return FakeManilaV2()
+        else:
+            raise ValueError(f"Backend string {backend_str} does not match any supported fake backends!")
+    else:
+        # load IBM Quantum credentials
+        load_dotenv()
+        ibmq_api_token = os.environ["TOKEN"]
+        ibmq_hub = os.environ["HUB"]
+        ibmq_group = os.environ["GROUP"]
+        ibmq_project = "multiflavorschwi"
+        # load backend from backend string
+        provider = IBMProvider(token=ibmq_api_token, instance=f"{ibmq_hub}/{ibmq_group}/{ibmq_project}")
+        return provider.get_backend(backend_str)
