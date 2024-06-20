@@ -15,22 +15,55 @@ from qiskit_ibm_runtime import QiskitRuntimeService, Session, Options
 from qiskit_ibm_runtime import Estimator
 
 import csv
-
-## To-Do: Combine this to a single calibration file
-# Define what estimator and passmanager calibration should be used
-est_cal_file = "example_estimator_calibration.yaml"
-pm_cal_file = "example_passmanager_calibration.yaml"
-# get estimator calibration
-est_cal = cal.get_EstimatorCalibration_from_yaml(est_cal_file)
-# get passmanager calibration
-pm_cal = cal.get_PresetPassManagerCalibration_from_yaml(pm_cal_file)
-
-# Define the directory to save the results
-result_dir = "/path/to/result/dir/"
+import yaml
 
 # Define a id for the simulation run
 sim_id = "test_run_1" # Maybe this should not be part of the calibration file, such that we can re-run a calibration with a different sim_id
-##
+
+# Define calibration file
+cal_file = "exampler_calibration.yaml"
+# get estimator calibration
+est_cal = cal.get_EstimatorCalibration_from_yaml(cal_file)
+# get passmanager calibration
+pm_cal = cal.get_PresetPassManagerCalibration_from_yaml(cal_file)
+
+# read calibration dictionary
+if not os.path.isfile(cal_file):
+    raise ValueError("file {} does not exist!".format(cal_file))
+
+cal_dict = None
+raw_data = None
+with open(cal_file, "r") as f:
+    raw_data = f.read()
+
+cal_dict = yaml.load(raw_data, Loader=yaml.Loader)
+if cal_dict is None:
+    raise ValueError("Something went wrong while reading in yaml text file! resulting dictionary is empty!")
+    
+
+# Define the directory to save the results
+result_dir = cal_dict.get("result_dir", None)
+if result_dir is None:
+    print("Could not retrieve a result directory from calibration file. Set it to the current working directory!")
+    result_dir = os.getcwd()
+
+graph_dir = cal_dict.get("graph_dir", None)
+graph_fname = cal_dict.get("graph_fname", None)
+if graph_fname is None and graph_dir is None:
+    print("No graph filename and directory were given. Use backend string from passmanager calibration to create graph.")
+    ## To-Do: Implement function to retrieve the graph from a given backend string
+    graph = None
+    ##
+else:
+    if graph_fname is None:
+        raise ValueError("Graph directory was given but could not retrieve graph filename! To import from backend directly, leave both empty!")
+    if graph_dir is None:
+        raise ValueError("Graph filename was given but could not retrieve graph directory! To import from backend directly, leave both empty!")
+    graph_file = os.path.join(graph_dir, graph_fname)
+    # load initial graph from pickle
+    graph = None
+    with open(graph_file, "rb") as f:
+        graph = pickle.load(f)
 
 # make directory for this simulation run
 result_dir = os.path.join(result_dir, sim_id)
@@ -53,18 +86,8 @@ provider = IBMProvider(token=ibmq_api_token, instance=f"{ibmq_hub}/{ibmq_group}/
 service = QiskitRuntimeService(channel="ibm_quantum", token=ibmq_api_token, instance=f"{ibmq_hub}/{ibmq_group}/{ibmq_project}")
 
 
-## To-Do: this must be replaced by loading the graph topology from a given backend
-# Define what graph topologies should be considered
-graph_dir = "/Users/as56ohop/Documents/NAS_sync/PhD/code/ghz_state_generation_in_com_networks/ghz_generation_heuristic_alg/Saved_small_random_graphs/"
-graph_file="random_graph_n10_p0.1_erdos_renyi_copy_1.pkl"
-
-curr_fname = os.path.join(graph_dir, graph_file)
-##
-
-## To-Do: Change function such that it takes graph object as input
 # create the circuit to generate GHZ state
-curr_circ, curr_init_graph, curr_star_graph = cgsc.create_ghz_state_circuit(curr_fname)
-##
+curr_circ, curr_init_graph, curr_star_graph = cgsc.create_ghz_state_circuit(graph)
 
 ## To-Do integrate funciton to get the observable here, once it's finished!
 # Get fidelity observable

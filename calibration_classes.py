@@ -424,15 +424,20 @@ def get_EstimatorCalibration_from_yaml(fname: str) -> EstimatorCalibration:
     if not os.path.isfile(fname):
         raise ValueError("file {} does not exist!".format(fname))
 
-    est_cal_dict = None
+    cal_dict = None
     raw_data = None
     with open(fname, "r") as f:
         raw_data = f.read()
 
-    est_cal_dict = yaml.load(raw_data, Loader=yaml.Loader)
-    if est_cal_dict is None:
-        raise ValueError("Something went wrong while reading in yml text file! resulting dictionary is empty!")
+    cal_dict = yaml.load(raw_data, Loader=yaml.Loader)
+    if cal_dict is None:
+        raise ValueError("Something went wrong while reading in yaml text file! resulting dictionary is empty!")
     
+    est_cal_dict = cal_dict.get("estimator_calibration", None)
+    if est_cal_dict is None:
+        raise ValueError("Something went wrong while reading in yaml text file! No estimator calibration subdictionary found!")
+    
+
     est_opt = est_cal_dict.get("estimator_options", None)
     if est_opt is None:
         raise ValueError("could not retrieve estimator options!")
@@ -671,8 +676,14 @@ def get_PresetPassManagerCalibration_from_yaml(fname: str) -> PresetPassManagerC
     if cal_dict is None:
         raise ValueError("Something went wrong while reading in yml text file! resulting dictionary is empty!")
     
+    pm_cal_dict = cal_dict.get("passmanager_calibration", None)
+
+    if pm_cal_dict is None:
+        raise ValueError("Something went wrong while reading in yml text file! No passmanager subdictionary found!")
     
-    return get_EstimatorCalibration_from_dict(cal_dict)
+    
+    
+    return get_EstimatorCalibration_from_dict(pm_cal_dict)
     
 
 def get_PresetPassManagerCalibration_from_pickle(fname: str) -> PresetPassManagerCalibration:

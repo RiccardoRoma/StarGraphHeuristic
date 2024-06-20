@@ -23,11 +23,17 @@ def convert_star_to_ghz(circ: QuantumCircuit, graph: Graph) -> QuantumCircuit:
 
     return circ
 
+# wrapper function to generate circuit from a file that contains the graph
 def create_ghz_state_circuit(graph_file: str) -> Tuple[QuantumCircuit, Graph]:
     # load initial graph from pickle
     graph_orig = None
     with open(graph_file, "rb") as f:
         graph_orig = pickle.load(f)
+    
+    return create_ghz_state_circuit_graph(graph_orig)
+    
+
+def create_ghz_state_circuit_graph(graph_orig: Graph) -> Tuple[QuantumCircuit, Graph]:
     # save initial graph
     init_graph = copy.deepcopy(graph_orig)
     # run calculate_msq form qiskit_input_graph.py
