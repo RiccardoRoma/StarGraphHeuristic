@@ -16,15 +16,21 @@ from qiskit_ibm_runtime import Estimator
 
 import csv
 
+## To-Do: Combine this to a single calibration file
 # Define what estimator and passmanager calibration should be used
 est_cal_file = "example_estimator_calibration.yaml"
 pm_cal_file = "example_passmanager_calibration.yaml"
+# get estimator calibration
+est_cal = cal.get_EstimatorCalibration_from_yaml(est_cal_file)
+# get passmanager calibration
+pm_cal = cal.get_PresetPassManagerCalibration_from_yaml(pm_cal_file)
 
 # Define the directory to save the results
 result_dir = "/path/to/result/dir/"
 
 # Define a id for the simulation run
-sim_id = "test_run_1"
+sim_id = "test_run_1" # Maybe this should not be part of the calibration file, such that we can re-run a calibration with a different sim_id
+##
 
 # make directory for this simulation run
 result_dir = os.path.join(result_dir, sim_id)
@@ -32,11 +38,6 @@ if os.path.isdir(result_dir):
     raise FileExistsError("directory "+result_dir+" does already exist!")
 else:
     os.mkdir(result_dir)
-
-# get estimator calibration
-est_cal = cal.get_EstimatorCalibration_from_yaml(est_cal_file)
-# get passmanager calibration
-pm_cal = cal.get_PresetPassManagerCalibration_from_yaml(pm_cal_file)
 
 # create pass manager from calibration
 pass_manager = cal.get_passmanager(pm_cal)
