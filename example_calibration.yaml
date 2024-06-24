@@ -1,0 +1,51 @@
+result_dir: /Users/as56ohop/Documents/NAS_sync/PhD/code/ghz_state_generation_in_com_networks/ghz_generation_heuristic_alg/simulation_results
+graph_dir: null
+graph_fname: null
+estimator_calibration:
+  backend_str: fake_fractional
+  basis_gates_str: None
+  coupling_map_str: None
+  estimator_options:
+    environment_options:
+      callback: null
+      job_tags: null
+      log_level: WARNING
+    execution_options:
+      init_qubits: true
+      shots: 4096
+    max_execution_time: null
+    optimization_level: 0
+    resilience_level: 2
+    resilience_options:
+      extrapolator: LinearExtrapolator
+      noise_amplifier: LocalFoldingAmplifier
+      noise_factors:
+      - 1
+      - 2
+      - 3
+    simulator_options:
+      basis_gates: null
+      coupling_map: null
+      noise_model: null
+      seed_simulator: null
+    transpilation_options:
+      approximation_degree: 1.0
+      initial_layout: null
+      layout_method: trivial
+      routing_method: basic
+      skip_transpilation: false
+  estimator_str: ibm_runtime
+  name: EstimatorCalibration
+  noise_model_str: None
+passmanager_calibration:
+  backend_str: fake_fractional
+  optimization_level: 3
+  initial_layout: null
+  layout_method: null
+  routing_method: null
+  translation_method: null
+  scheduling_method: null
+  approximation_degree: 1.0
+  seed_transpile: null
+  unitary_synthesis_method: null
+  unitary_synthesis_plugin_config: null
