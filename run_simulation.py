@@ -1,6 +1,7 @@
 import numpy as np
 import pickle
 from Qiskit_input_graph import draw_graph, calculate_msq
+import modify_graph_objects as mgo
 import networkx as nx
 from networkx import Graph
 from qiskit import QuantumCircuit
@@ -13,19 +14,31 @@ from dotenv import load_dotenv
 from qiskit_ibm_provider import IBMProvider
 from qiskit_ibm_runtime import QiskitRuntimeService, Session, Options
 from qiskit_ibm_runtime import Estimator
+from qiskit_ibm_runtime.options.utils import Unset
+from qiskit.quantum_info import SparsePauliOp
+from IBM_hardware_data import generate_layout_graph
+from qiskit_aer import AerSimulator
+from qiskit_aer.noise import NoiseModel
+from qiskit.transpiler.passes import RemoveBarriers
 
 import csv
 import yaml
+from datetime import datetime
+import matplotlib.pyplot as plt
 
 # Define a id for the simulation run
-sim_id = "test_run_1" # Maybe this should not be part of the calibration file, such that we can re-run a calibration with a different sim_id
+sim_id = "test_run_2" # Maybe this should not be part of the calibration file, such that we can re-run a calibration with a different sim_id
 
 # Define calibration file
-cal_file = "exampler_calibration.yaml"
+cal_file = "example_calibration.yaml"
 # get estimator calibration
 est_cal = cal.get_EstimatorCalibration_from_yaml(cal_file)
 # get passmanager calibration
 pm_cal = cal.get_PresetPassManagerCalibration_from_yaml(cal_file)
+
+# load backend from passmanager calibration
+backend = cal.get_backend(pm_cal.backend_str)
+
 
 # read calibration dictionary
 if not os.path.isfile(cal_file):
@@ -51,9 +64,7 @@ graph_dir = cal_dict.get("graph_dir", None)
 graph_fname = cal_dict.get("graph_fname", None)
 if graph_fname is None and graph_dir is None:
     print("No graph filename and directory were given. Use backend string from passmanager calibration to create graph.")
-    ## To-Do: Implement function to retrieve the graph from a given backend string
-    graph = None
-    ##
+    graph = generate_layout_graph(backend)
 else:
     if graph_fname is None:
         raise ValueError("Graph directory was given but could not retrieve graph filename! To import from backend directly, leave both empty!")
@@ -64,6 +75,9 @@ else:
     graph = None
     with open(graph_file, "rb") as f:
         graph = pickle.load(f)
+
+    if not isinstance(graph, Graph):
+        raise ValueError("Loaded graph object is not a networkx graph object!")
 
 # make directory for this simulation run
 result_dir = os.path.join(result_dir, sim_id)
@@ -87,20 +101,51 @@ service = QiskitRuntimeService(channel="ibm_quantum", token=ibmq_api_token, inst
 
 
 # create the circuit to generate GHZ state
-curr_circ, curr_init_graph, curr_star_graph = cgsc.create_ghz_state_circuit(graph)
+curr_circ, curr_init_graph, curr_star_graph = cgsc.create_ghz_state_circuit_graph(graph)
+
+# draw graph and save the plot
+fname_graph = f"sim_{sim_id}_layout_graph_backend_{pm_cal.backend_str}.pdf"
+fname_graph = os.path.join(result_dir, fname_graph)
+mgo.draw_graph(curr_init_graph, title="Layout graph for "+pm_cal.backend_str+ " backend", fname=fname_graph)
 
 ## To-Do integrate funciton to get the observable here, once it's finished!
 # Get fidelity observable
-observalbe = None
+observalbe = SparsePauliOp(["X"*backend.num_qubits], coeffs=np.asarray([1.0])) # This is just a dummy observable used for debugging
 ##
 
+# remove all barriers
+curr_circ = RemoveBarriers()(curr_circ)
 # transpile circuit with passmanager
 transp_circ = pass_manager.run(curr_circ)
 isa_observable = observalbe.apply_layout(transp_circ.layout)
 
-with Session(service, backend=pm_cal.backend_str) as session:
+with Session(service, backend=backend) as session:
     # create estimator from calibration
     estimator = cal.get_estimator(est_cal, session=session)
+
+    # For fake backends to have a true noisy simulation
+    if "fake" in pm_cal.backend_str:
+        # set coupling map for estimator to backend.coupling_map
+        if estimator.options.simulator["coupling_map"] == Unset:
+            estimator.set_options(coupling_map= [list(t) for t in list(backend.coupling_map.get_edges())])
+            # update calibration class
+            est_cal.estimator_options["simulator_options"]["coupling_map"] =  [list(t) for t in list(backend.coupling_map.get_edges())]
+            est_cal.coupling_map_str = pm_cal.backend_str + "_" + datetime.today().strftime('%Y-%m-%d')
+    
+        # set noise model of estimator to backend noise model
+        if estimator.options.simulator["noise_model"] == Unset:
+            estimator.set_options(noise_model = NoiseModel.from_backend(backend))
+            # update calibration class
+            est_cal.estimator_options["simulator_options"]["noise_model"] = NoiseModel.from_backend(backend)
+            est_cal.noise_model_str = pm_cal.backend_str + "_" + datetime.today().strftime('%Y-%m-%d')
+            
+    
+        if estimator.options.simulator["basis_gates"] == Unset:
+            estimator.set_options(basis_gates = NoiseModel.from_backend(backend).basis_gates)
+            # update calibration class
+            est_cal.estimator_options["simulator_options"]["basis_gates"] = NoiseModel.from_backend(backend).basis_gates
+            est_cal.basis_gates_str = pm_cal.backend_str + "_" + datetime.today().strftime('%Y-%m-%d')
+    
     # run circuit and observable on backend
     job = estimator.run(transp_circ, isa_observable)
     est_result = job.result()
@@ -136,17 +181,24 @@ fname_graph = os.path.join(result_dir, fname_graph)
 with open(fname_graph, "wb") as f:
     pickle.dump(curr_init_graph,f)
 
-# pickle initial circuit
+# pickle initial circuit and save plot
 fname_circ = f"sim_{sim_id}_circuit_backend_{pm_cal.backend_str}.pickle"
 fname_circ = os.path.join(result_dir, fname_circ)
 with open(fname_circ, "wb") as f:
     pickle.dump(curr_circ, f)
+fname_circ = f"sim_{sim_id}_circuit_backend_{pm_cal.backend_str}.pdf"
+fname_circ = os.path.join(result_dir, fname_circ)
+curr_circ.draw("mpl", filename=fname_circ)
 
-# pickle transpiled circuit
+
+# pickle transpiled circuit and save plot
 fname_circ_transp = f"sim_{sim_id}_circuit_transpiled_backend_{pm_cal.backend_str}.pickle"
 fname_circ_transp = os.path.join(result_dir, fname_circ_transp)
 with open(fname_circ_transp, "wb") as f:
-    pickle.dump(curr_circ, f)
+    pickle.dump(transp_circ, f)
+fname_circ_transp = f"sim_{sim_id}_circuit_transpiled_backend_{pm_cal.backend_str}.pdf"
+fname_circ_transp = os.path.join(result_dir, fname_circ_transp)
+transp_circ.draw("mpl", filename=fname_circ_transp)
 
 # pickle estimator result
 fname_est_result = f"sim_{sim_id}_estimator_result.pickle"
