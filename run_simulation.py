@@ -25,12 +25,23 @@ import csv
 import yaml
 from datetime import datetime
 import matplotlib.pyplot as plt
+import argparse
+# Setup argument parser to read in required inputs from cmd line
+parser = argparse.ArgumentParser(description='Script to run heuristic circuit for generating GHZ state on IBM hardware')
+parser.add_argument('simulation_id', metavar='id', type=str, help='a unique id for this simulation run')
+parser.add_argument('-f', '--file', dest='fname', metavar='/path/to/filename.yaml', action='store', type=str, default=None, help='path to yaml file which contains the calibration data of this simulation run.')
+
+args = parser.parse_args()
 
 # Define a id for the simulation run
-sim_id = "test_run_2" # Maybe this should not be part of the calibration file, such that we can re-run a calibration with a different sim_id
+sim_id = args.simulation_id
 
 # Define calibration file
-cal_file = "example_calibration.yaml"
+if args.fname is None:
+    cal_file = "example_calibration.yaml"
+else:
+    cal_file = args.fname
+    
 # get estimator calibration
 est_cal = cal.get_EstimatorCalibration_from_yaml(cal_file)
 # get passmanager calibration
