@@ -12,8 +12,9 @@ from qiskit.primitives import BaseEstimator
 from qiskit.primitives import Estimator as TerraEstimator
 from qiskit.primitives import BackendEstimator as BackendEstimator
 from qiskit.providers import BackendV1, BackendV2
-from qiskit_ibm_runtime.fake_provider import FakeManilaV2
+from qiskit_ibm_runtime.fake_provider import FakeManilaV2, FakeFractionalBackend
 from qiskit_aer.primitives import Estimator as AerEstimator
+from qiskit_aer import AerSimulator
 from qiskit_aer.noise import NoiseModel
 
 from qiskit.transpiler import PassManager
@@ -22,6 +23,7 @@ from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
 
 import qiskit_ibm_runtime as qir
 from qiskit_ibm_provider import IBMProvider
+from qiskit_ibm_runtime.options.utils import Unset
 from dotenv import load_dotenv
 
 
@@ -115,6 +117,9 @@ class EstimatorCalibration(Calibration):
             if isinstance(est_cal_dict["estimator_options"][key], Dict):
                 # check if noise_model key exists
                 noise_model = est_cal_dict["estimator_options"][key].pop("noise_model", None)
+                # Handle qiskit ibm runtime Unset typ
+                if noise_model is Unset:
+                    noise_model = None
                 # if noise_model is not None, replace with noise_model_str in yaml (when loaded this will be again replaced by pickled noise_model)
                 if noise_model is not None:
 
@@ -128,7 +133,17 @@ class EstimatorCalibration(Calibration):
 
                     # est_cal_dict["estimator_options"][key]["noise_model"] = est_cal_dict["noise_model_str"]
                     est_cal_dict["estimator_options"][key]["noise_model"] = fname_noise_model
-                    
+        # Handle qiskit_ibm_runtime.options.utils UnsetType
+        if self.estimator_str == "ibm_runtime":
+            # Handle qiskit_ibm_runtime.options.utils UnsetType
+            for k, v in est_cal_dict["estimator_options"]["simulator_options"].items():
+                if v is Unset:
+                    est_cal_dict["estimator_options"]["simulator_options"][k] = None
+
+            for k, v in est_cal_dict["estimator_options"]["transpilation_options"].items():
+                if v is Unset:
+                    est_cal_dict["estimator_options"]["transpilation_options"][k] = None
+
         # check if file already exists
         if os.path.isfile(fname):
             raise ValueError("file {} does already exist!".format(fname))
@@ -236,7 +251,16 @@ class EstimatorCalibration(Calibration):
                 raise ValueError("simulator options must be a dictionary")
             
             
-            
+            # Handle qiskit_ibm_runtime.options.utils UnsetType
+            for k, v in est_opt["simulator_options"].items():
+                if v is None:
+                    est_opt["simulator_options"][k] = Unset
+
+            for k, v in est_opt["transpilation_options"].items():
+                if v is None:
+                    est_opt["transpilation_options"][k] = Unset
+
+
             
             # if shots is not set, set it to default
             shots = est_opt["execution_options"].get("shots", None)
@@ -392,11 +416,19 @@ def get_EstimatorCalibration_from_dict(est_cal_dict: dict) -> EstimatorCalibrati
         if isinstance(est_opt[key], Dict):
             noise_model = est_opt[key].get("noise_model", None)
             if noise_model is not None:
-                if not isinstance(noise_model, NoiseModel):
-                    raise ValueError("Loaded noise model is no qiskit_aer NoiseModel!")
-                if noise_model_str == "None":
-                    raise ValueError("Noise model is a valid aer NoiseModel but noise model string equals string None!")
-                valid_noise_model_found = True
+                if isinstance(noise_model, Dict):
+                    if len(noise_model)==0:
+                        if noise_model_str != "None":
+                            raise ValueError("Noise model is empty but noise model string {} does not match string None.".format(noise_model_str))
+                    else:
+                        if noise_model_str == "None":
+                            raise ValueError("Noise model is not empty but noise model string matches string None!")
+                        valid_noise_model_found = True
+                elif isinstance(noise_model, NoiseModel):
+                    if noise_model_str == "None":
+                        raise ValueError("Found a valid Aer noise model but noise model string matches string None!")
+                    valid_noise_model_found = True
+                    
 
     if not valid_noise_model_found:
         if noise_model_str != "None":
@@ -449,15 +481,17 @@ def get_EstimatorCalibration_from_yaml(fname: str) -> EstimatorCalibration:
         if isinstance(est_opt[key], Dict):
             fname_noise_model = est_opt[key].get("noise_model", None)
             if fname_noise_model is not None:
-                
-                if not os.path.isfile(fname_noise_model):
-                    raise ValueError("Unable to find pickle file to load noise_model for estimator option {}. Looked for file {}.".format(key, fname_noise_model))
-                
-                with open(fname_noise_model, "rb") as f:
-                    noise_model = pickle.load(f)
-
-                if not isinstance(noise_model, NoiseModel):
-                    raise ValueError("Loaded noise model is no qiskit_aer NoiseModel!")
+                if isinstance(fname_noise_model, str):
+                    if not os.path.isfile(fname_noise_model):
+                        raise ValueError("Unable to find pickle file to load noise_model for estimator option {}. Looked for file {}.".format(key, fname_noise_model))
+                    
+                    with open(fname_noise_model, "rb") as f:
+                        noise_model = pickle.load(f)
+    
+                    if not isinstance(noise_model, NoiseModel):
+                        raise ValueError("Loaded noise model is no qiskit_aer NoiseModel!")
+                elif isinstance(fname_noise_model, Dict):
+                    noise_model = copy.copy(fname_noise_model)
                 
                 est_cal_dict["estimator_options"][key]["noise_model"] = noise_model
 
@@ -685,7 +719,7 @@ def get_PresetPassManagerCalibration_from_yaml(fname: str) -> PresetPassManagerC
     
     
     
-    return get_EstimatorCalibration_from_dict(pm_cal_dict)
+    return get_PresetPassManagerCalibration_from_dict(pm_cal_dict)
     
 
 def get_PresetPassManagerCalibration_from_pickle(fname: str) -> PresetPassManagerCalibration:
@@ -704,6 +738,7 @@ def get_PresetPassManagerCalibration_from_pickle(fname: str) -> PresetPassManage
 def get_passmanager(pm_cal: PresetPassManagerCalibration) -> PassManager:
     # load qiskit backend
     backend = get_backend(pm_cal.backend_str)
+
     # return preset passmanager
     return generate_preset_pass_manager(optimization_level=pm_cal.optimization_level, 
                                         backend=backend,
@@ -717,13 +752,17 @@ def get_passmanager(pm_cal: PresetPassManagerCalibration) -> PassManager:
                                         unitary_synthesis_method=pm_cal.unitary_synthesis_method,
                                         unitary_synthesis_plugin_config=pm_cal.unitary_synthesis_plugin_config)
 
-def get_backend(backend_str: str) -> Union[BackendV1, BackendV2]:
+def get_backend(backend_str: str) -> BackendV2:
+    supported_fake_backends = ["fake_manilaV2", "fake_fractional"]
     if "fake" in backend_str:
-        # use a fake providers backend to test simulation on a local run
-        if backend_str == "fake_algiers":
-            return FakeManilaV2()
-        else:
-            raise ValueError(f"Backend string {backend_str} does not match any supported fake backends!")
+        if backend_str not in supported_fake_backends:
+            raise ValueError(f"Backend string {backend_str} does not match any supported fake backends! Please choose one of the following backend strings {supported_fake_backends}.")
+        for s in supported_fake_backends:
+            # use a fake providers backend to test simulation on a local run
+            if backend_str == "fake_manilaV2":
+                return FakeManilaV2()
+            elif backend_str == "fake_fractional":
+                return FakeFractionalBackend()
     else:
         # load IBM Quantum credentials
         load_dotenv()
