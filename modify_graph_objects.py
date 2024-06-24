@@ -18,24 +18,24 @@ import csv
 import concurrent.futures 
 import time
 
-def generate_ibm_graph(nodes_list, edges_list, use_barabasi):
-    
-        # Create a graph G
-        G = nx.Graph()
-        
-        # Add nodes to the graph
-        G.add_nodes_from(nodes_list)
-        
-        # Add edges to the graph
-        G.add_edges_from(edges_list)
-        
-        plt.figure()
-        nx.draw(G, node_color='lightgreen', 
-                with_labels=True, 
-                node_size=500)
-        return G
+# def generate_ibm_graph(nodes_list, edges_list, use_barabasi):
+#     
+#         # Create a graph G
+#         G = nx.Graph()
+#         
+#         # Add nodes to the graph
+#         G.add_nodes_from(nodes_list)
+#         
+#         # Add edges to the graph
+#         G.add_edges_from(edges_list)
+#         
+#         plt.figure()
+#         nx.draw(G, node_color='lightgreen', 
+#                 with_labels=True, 
+#                 node_size=500)
+#         return G
 
-def draw_graph(graph, node_color='yellow', layout="circular"):
+def draw_graph(graph, node_color='yellow', layout="circular", title="", fname=""):
     """
     Draw the given graph using NetworkX and Matplotlib.
     """
@@ -46,7 +46,12 @@ def draw_graph(graph, node_color='yellow', layout="circular"):
 
     plt.figure(figsize=(8, 8))
     nx.draw(graph, pos, with_labels=True, node_color=node_color, node_size=500, font_size=10, font_color='black', font_weight='bold')
-    plt.title("Graph Visualization")
+    if len(title) == 0:
+        plt.title("Graph Visualization")
+    else:
+        plt.title(title)
+    if len(fname) > 0:
+        plt.savefig(fname, bbox_inches="tight")
     plt.show()
 
 
