@@ -41,7 +41,7 @@ if args.fname is None:
     cal_file = "example_calibration.yaml"
 else:
     cal_file = args.fname
-    
+
 # get estimator calibration
 est_cal = cal.get_EstimatorCalibration_from_yaml(cal_file)
 # get passmanager calibration
@@ -66,7 +66,9 @@ if cal_dict is None:
     
 
 # Define the directory to save the results
+## To-Do: Result directory should also be a cmd line input
 result_dir = cal_dict.get("result_dir", None)
+##
 if result_dir is None:
     print("Could not retrieve a result directory from calibration file. Set it to the current working directory!")
     result_dir = os.getcwd()
@@ -164,6 +166,7 @@ with Session(service, backend=backend) as session:
     fidelity = est_result.values[0]
 
 # save the result and all calibration data, graph, transpiled circuit, etc. in the result dir
+## To-Do: passmanager calibration data, that is None must be converted to string "None" before writing to csv file
 # save to csv file
 header_est, data_est = est_cal.get_filevector()
 header_pm, data_pm = pm_cal.get_filevector()
@@ -176,8 +179,10 @@ with open(fname_csv, "w", newline="") as csvfile:
     spamwriter = csv.writer(csvfile, delimiter=' ')
     spamwriter.writerow(csv_header)
     spamwriter.writerow(csv_data)
+##
 
 # save calibration as yaml files
+## To-Do: Save both calibration data in one file (similar as the input calibration file)
 fname_est_cal = f"sim_{sim_id}_estimator_calibration.yaml"
 fname_est_cal = os.path.join(result_dir, fname_est_cal)
 est_cal.to_yaml(fname_est_cal)
@@ -185,6 +190,7 @@ est_cal.to_yaml(fname_est_cal)
 fname_pm_cal = f"sim_{sim_id}_passmanager_calibration.yaml"
 fname_pm_cal = os.path.join(result_dir, fname_pm_cal)
 pm_cal.to_yaml(fname_pm_cal)
+##
 
 # pickle intial layout graph
 fname_graph = f"sim_{sim_id}_layout_graph_backend_{pm_cal.backend_str}.pickle"
