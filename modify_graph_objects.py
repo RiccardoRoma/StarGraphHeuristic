@@ -41,8 +41,15 @@ def draw_graph(graph, node_color='yellow', layout="circular", title="", fname=""
     """
     if layout == "circular":
         pos = nx.circular_layout(graph)
+    elif layout == "planar":
+        pos = nx.planar_layout(graph)
+    elif layout == "multipartite":
+        pos = nx.multipartite_layout(graph)
+    elif layout == "graphviz_dot":
+        pos = nx.nx_agraph.pygraphviz_layout(graph, prog="dot")
     else:
-        pos = nx.spring_layout(graph)  # Default to spring layout if layout is not circular
+        print("Unknown layout string, use spring layout")
+        pos = nx.spring_layout(graph)  # Default to spring layout if layout does not match any implemented layout
 
     plt.figure(figsize=(8, 8))
     nx.draw(graph, pos, with_labels=True, node_color=node_color, node_size=500, font_size=10, font_color='black', font_weight='bold')
