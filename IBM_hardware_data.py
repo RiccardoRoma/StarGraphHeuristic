@@ -1,5 +1,6 @@
 import networkx as nx
 from networkx import Graph
+from itertools import combinations
 from dotenv import load_dotenv
 from typing import Callable, Dict, List, Optional, Tuple, Union
 from qiskit.providers import BackendV1, BackendV2
@@ -27,7 +28,8 @@ import networkx as nx
 #     mp=backend.target["measure"][(i,)]
 #     print(mp)
 
-def generate_layout_graph(backend: BackendV2) -> Graph:
+def generate_layout_graph(backend: BackendV2,
+                          k: Union[int, None] = None) -> Graph:
     # get nodes list
     nodes_list = list(range(backend.num_qubits))
     # get edges list
@@ -75,6 +77,20 @@ def generate_layout_graph(backend: BackendV2) -> Graph:
     G.remove_nodes_from(isolated_nodes)
 
 
-    ## To-Do: add option to generate a subgraph containing k nodes (with lowest mean CNOT error and/or readout error)
-    
-    return G
+    if k is not None:
+        ## To-Do: This can be more efficient, by just saving the current subgraph with the lowest error
+        subgraphs = []
+        for nodes in combinations(G.nodes, k):
+            G_sub = G.subgraph(nodes)
+            if nx.is_connected(G_sub):
+                subgraphs.append(G_sub)
+
+        # pick best subgraph
+        return get_best_subgraph(subgraphs, backend)
+    else:
+        return G
+
+def get_best_subgraph(subgraphs: List[Graph],
+                      backend: BackendV2) -> Graph:
+    ## To-Do: add option to return subgraph with lowest mean CNOT error and/or readout error
+    return subgraphs[0]
