@@ -128,6 +128,7 @@ observalbe = SparsePauliOp(["X"*backend.num_qubits], coeffs=np.asarray([1.0])) #
 
 # remove all barriers
 curr_circ = RemoveBarriers()(curr_circ)
+## To-Do: add list of graph nodes as initial layout (want to label logical -> physical qubits as i -> i)!
 # transpile circuit with passmanager
 transp_circ = pass_manager.run(curr_circ)
 isa_observable = observalbe.apply_layout(transp_circ.layout)
