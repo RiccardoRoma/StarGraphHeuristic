@@ -5,6 +5,7 @@ from typing import Callable, Dict, List, Optional, Tuple, Union
 from qiskit.providers import BackendV1, BackendV2
 from qiskit_ibm_provider import IBMProvider
 from qiskit_ibm_runtime import QiskitRuntimeService, Session, Options
+from qiskit.transpiler import CouplingMap
 #import modify_graph_objects as mgo
 import networkx as nx
 
@@ -32,14 +33,6 @@ def generate_layout_graph(backend: BackendV2) -> Graph:
     # get edges list
     edges_list = list(backend.coupling_map.get_edges())
 
-    ## To-Do: throw out inactive qubits (higher measurement error) and edges
-    # qubit readout error
-    # for i in range(num_qubits):
-    #     mp=backend.target["measure"][(i,)].error
-    # cx error
-    # backend.target["cx"][(i,j)].error
-    ##
-
     # generate graph object from nodes list and edges list
     # Init a graph G object
     G = Graph()
@@ -49,5 +42,39 @@ def generate_layout_graph(backend: BackendV2) -> Graph:
     
     # Add edges to the graph
     G.add_edges_from(edges_list)
+
+    # check measurement error of qubits (throw those out with too large error)
+    meas_err_thrs = 0.4 # error threshold
+    for i in range(backend.num_qubits):
+        # get current measurement error
+        meas_err = backend.target["measure"][(i,)].error
+        # check if above threshold
+        if meas_err > meas_err_thrs:
+            # delete node from graph if this is the case
+            G.remove_node(i)
+    
+    # check two-qubit gate error (throw out those edges with too large error)
+    two_q_gate_err_thrs = 0.4 # error threshold
+    # check available two-qubit gate
+    if "cx" in backend.operation_names:
+        two_qubit_gate_str = "cx"
+    elif "ecr" in backend.operation_names:
+        two_qubit_gate_str = "ecr"
+    # iterate through all edges
+    for i,j in G.edges:
+        # get current two-qubit gate error
+        two_q_gate_err = backend.target[two_qubit_gate_str][(i,j)].error
+        # check if above threshold
+        if two_q_gate_err > two_q_gate_err_thrs:
+            # remove this edges
+            G.remove_edge(i, j)
+
+    # check if some nodes got disconnected
+    isolated_nodes = list(nx.isolates(G))
+    # remove isolated nodes
+    G.remove_nodes_from(isolated_nodes)
+
+
+    ## To-Do: add option to generate a subgraph containing k nodes (with lowest mean CNOT error and/or readout error)
     
     return G
