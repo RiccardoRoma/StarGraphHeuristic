@@ -29,6 +29,7 @@ import networkx as nx
 #     print(mp)
 
 def generate_layout_graph(backend: BackendV2,
+                          add_errs_as_weigths: bool = True,
                           k: Union[int, None] = None) -> Graph:
     # get nodes list
     nodes_list = list(range(backend.num_qubits))
@@ -54,6 +55,9 @@ def generate_layout_graph(backend: BackendV2,
         if meas_err > meas_err_thrs:
             # delete node from graph if this is the case
             G.remove_node(i)
+        if add_errs_as_weigths:
+            # add error [%] as a node weight 
+            G.nodes[i]['weight'] = round(meas_err * 100, 2)
     
     # check two-qubit gate error (throw out those edges with too large error)
     two_q_gate_err_thrs = 0.4 # error threshold
@@ -70,6 +74,9 @@ def generate_layout_graph(backend: BackendV2,
         if two_q_gate_err > two_q_gate_err_thrs:
             # remove this edges
             G.remove_edge(i, j)
+        if add_errs_as_weigths:
+            # add error [%] as an edges weight
+            G[i][j]['weight'] = round(two_q_gate_err * 100, 2)
 
     # check if some nodes got disconnected
     isolated_nodes = list(nx.isolates(G))
