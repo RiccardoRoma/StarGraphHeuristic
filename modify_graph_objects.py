@@ -35,7 +35,7 @@ import time
 #                 node_size=500)
 #         return G
 
-def draw_graph(graph, node_color='yellow', layout="circular", title="", fname=""):
+def draw_graph(graph, show_weights=False, node_color='yellow', layout="circular", title="", fname=""):
     """
     Draw the given graph using NetworkX and Matplotlib.
     """
@@ -51,8 +51,20 @@ def draw_graph(graph, node_color='yellow', layout="circular", title="", fname=""
         print("Unknown layout string, use spring layout")
         pos = nx.spring_layout(graph)  # Default to spring layout if layout does not match any implemented layout
 
-    plt.figure(figsize=(8, 8))
-    nx.draw(graph, pos, with_labels=True, node_color=node_color, node_size=500, font_size=10, font_color='black', font_weight='bold')
+    plt.figure(figsize=(16, 9))
+    if show_weights:
+        nx.draw(graph, pos, with_labels=False, node_color=node_color, node_size=500, font_size=10, font_color='black', font_weight='bold')
+        # Draw node labels (including weights)
+        node_labels = {node: f"{node}\n({data.get('weight', 0.0)})" for node, data in graph.nodes(data=True)}
+        nx.draw_networkx_labels(graph, pos, labels=node_labels)
+        
+        # Draw edge labels
+        edge_labels = nx.get_edge_attributes(graph, 'weight', default=0.0)
+        nx.draw_networkx_edge_labels(graph, pos, edge_labels=edge_labels)
+    else:
+        nx.draw(graph, pos, with_labels=True, node_color=node_color, node_size=500, font_size=10, font_color='black', font_weight='bold')
+
+
     if len(title) == 0:
         plt.title("Graph Visualization")
     else:
