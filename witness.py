@@ -32,7 +32,7 @@ def witness_fancy(n_qbs:int):
         s[i+1] = 'Z'
         list_obs.append((''.join(s), -1))
 
-    op = SparsePauliOp('I' * n_qbs) -  (SparsePauliOp(list_obs[1]) + SparsePauliOp(list_obs[0]))
+    op = 3 * SparsePauliOp('I' * n_qbs) -  (SparsePauliOp(list_obs[1]) + SparsePauliOp(list_obs[0]))
     op += - 2 * math.prod(SparsePauliOp(list_obs[1]) + SparsePauliOp(list_obs[i])/2 for i in range(2, n_qbs))
     return op
 
