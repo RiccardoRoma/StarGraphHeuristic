@@ -10,7 +10,7 @@ from qiskit.quantum_info import SparsePauliOp
 
 
 def witness_plain(n_qbs:int):
-    list_obs = [('I' * n_qbs,n_qbs-1), ('X'*n_qbs,-1)]
+    list_obs = [('I' * n_qbs,n_qbs-1), ('X'* n_qbs,-1)]
     
     for i in range(1, n_qbs-1):
         s = ['I'] * n_qbs
@@ -22,7 +22,7 @@ def witness_plain(n_qbs:int):
     return op
 
 def witness_fancy(n_qbs:int):
-    list_obs = [('I' * (n_qbs), 1), (reversed('X' * ('I' * (n_qbs-1))),-1)]
+    list_obs = [('I' * (n_qbs), 1), ('X'* n_qbs,-1)]
     
     for i in range(1, n_qbs-1):
         s = ['I'] * n_qbs
