@@ -31,9 +31,38 @@ def create_ghz_state_circuit(graph_file: str) -> Tuple[QuantumCircuit, Graph]:
         graph_orig = pickle.load(f)
     
     return create_ghz_state_circuit_graph(graph_orig)
-    
 
-def create_ghz_state_circuit_graph(graph_orig: Graph) -> Tuple[QuantumCircuit, Graph]:
+def create_ghz_state_circuit_debug(graph_orig: Graph,
+                                   total_num_qubits: int) -> Tuple[QuantumCircuit, Graph]:
+    # consistency check
+    if max(list(graph_orig)) > total_num_qubits:
+        raise ValueError("Node indices of input graph exceed total number of qubits in circuit!")
+    # save initial graph
+    init_graph = copy.deepcopy(graph_orig)
+    circ = QuantumCircuit(total_num_qubits)
+
+    max_degree_node = mgo.get_graph_center(init_graph)
+
+    considered_nodes = [max_degree_node]
+    circ.h(max_degree_node)
+    while len(considered_nodes) < len(init_graph):
+        for edge in init_graph.edges:
+            if edge[0] in considered_nodes:
+                if edge[1] not in considered_nodes:
+                    circ.cx(edge[0], edge[1])
+                    considered_nodes.append(edge[1])
+            else:
+                if edge[1] in considered_nodes:
+                    circ.cx(edge[1], edge[0])
+                    considered_nodes.append(edge[0])
+
+    return circ, graph_orig
+
+def create_ghz_state_circuit_graph(graph_orig: Graph,
+                                   total_num_qubits: int) -> Tuple[QuantumCircuit, Graph]:
+    # consistency check
+    if max(list(graph_orig)) > total_num_qubits:
+        raise ValueError("Node indices of input graph exceed total number of qubits in circuit!")
     # save initial graph
     init_graph = copy.deepcopy(graph_orig)
     # run calculate_msq form qiskit_input_graph.py
@@ -45,7 +74,8 @@ def create_ghz_state_circuit_graph(graph_orig: Graph) -> Tuple[QuantumCircuit, G
     # qregs = QuantumRegister(len(graph_orig.nodes())) # number of nodes in initial graph is the number of qubits needed.
     # cregs = ClassicalRegister(len(subgraphs)-1) # if merging is sequentially than we need to measure (number of subgraphs - 1)-times
     # circ = QuantumCircuit(qregs, cregs)
-    circ = QuantumCircuit(len(graph_orig.nodes))
+    #circ = QuantumCircuit(len(graph_orig.nodes))
+    circ = QuantumCircuit(total_num_qubits)
 
     # # create seperate copy for star state generation
     # circ_substars = circ.copy()
