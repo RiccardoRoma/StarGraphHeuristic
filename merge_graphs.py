@@ -55,11 +55,7 @@ def merge_graphs(circ: QuantumCircuit, C1: int, graph1: Graph, C2: int, graph2: 
         leaf_qubits_g2= copy.deepcopy(list(graph2.nodes))
         leaf_qubits_g2.remove(C2)
         # Applying Pauli corrections
-        # with circ.if_test((curr_meas, 1)):
-        #     for i in leaf_qubits_g2:
-        #         circ.z(i)
-        
-        with circ.if_test((curr_meas, 1)):
+        with circ.if_test((curr_meas[0], 1)):
             for i in leaf_qubits_g2:
                 circ.z(i)
             if reuse_meas_qubit:
