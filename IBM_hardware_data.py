@@ -5,8 +5,9 @@ from dotenv import load_dotenv
 from typing import Callable, Dict, List, Optional, Tuple, Union
 from qiskit.providers import BackendV1, BackendV2
 from qiskit_ibm_provider import IBMProvider
-from qiskit_ibm_runtime import QiskitRuntimeService, Session, Options
+from qiskit_ibm_runtime import QiskitRuntimeService, Session, Options, IBMBackend
 from qiskit.transpiler import CouplingMap
+from qiskit_aer.noise import NoiseModel
 #import modify_graph_objects as mgo
 import networkx as nx
 
@@ -36,6 +37,7 @@ def generate_layout_graph(backend: BackendV2,
     # get edges list
     edges_list = list(backend.coupling_map.get_edges())
 
+    noise_model = NoiseModel.from_backend(backend)
     # generate graph object from nodes list and edges list
     # Init a graph G object
     G = Graph()
@@ -50,7 +52,16 @@ def generate_layout_graph(backend: BackendV2,
     meas_err_thrs = 0.4 # error threshold
     for i in range(backend.num_qubits):
         # get current measurement error
-        meas_err = backend.target["measure"][(i,)].error
+        if isinstance(backend, IBMBackend):
+            meas_err = backend.target["measure"][(i,)].error
+        else:
+            if noise_model.is_ideal():
+                meas_err = 0.0
+            elif i in noise_model.noise_qubits:
+                meas_err = noise_model._local_readout_errors[(i,)].probabilities[0,1]
+            else:
+                meas_err = 0.0
+
         # check if above threshold
         if meas_err > meas_err_thrs:
             # delete node from graph if this is the case
@@ -68,8 +79,32 @@ def generate_layout_graph(backend: BackendV2,
         two_qubit_gate_str = "ecr"
     # iterate through all edges
     for i,j in G.edges:
+        # construct both tuple representations of the current edge
+        et1 = (i,j)
+        et2 = (j,i)
         # get current two-qubit gate error
-        two_q_gate_err = backend.target[two_qubit_gate_str][(i,j)].error
+        if isinstance(backend, IBMBackend):
+            # IBMBackend class delivers all required info in target attribute
+            if et1 in backend.target[two_qubit_gate_str].keys():
+                two_q_gate_err = backend.target[two_qubit_gate_str][et1].error
+            elif et2 in backend.target[two_qubit_gate_str].keys():
+                two_q_gate_err = backend.target[two_qubit_gate_str][et2].error
+            else:
+                raise KeyError("Edge tuple {},{} from layout graph not in backend target operation {} keys {}". format(i,j, two_qubit_gate_str, backend.target[two_qubit_gate_str].keys()))
+        else:
+            # For AerBackend/AerSimulator target attribute info maybe incomplete, thus work with noise model
+            if noise_model.is_ideal():
+                two_q_gate_err = 0.0
+            elif two_qubit_gate_str in noise_model.noise_instructions:
+                err_dict_target = backend.target[two_qubit_gate_str]
+                if et1 in err_dict_target.keys():
+                    two_q_gate_err = err_dict_target[et1].error
+                elif et2 in err_dict_target.keys():
+                    two_q_gate_err = err_dict_target[et2].error
+                else:
+                    raise KeyError("Edge tuple {},{} from layout graph not in backend target operation {} keys {}". format(i,j, two_qubit_gate_str, backend.target[two_qubit_gate_str].keys()))
+            else:
+                two_q_gate_err = 0.0
         # check if above threshold
         if two_q_gate_err > two_q_gate_err_thrs:
             # remove this edges
