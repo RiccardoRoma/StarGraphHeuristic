@@ -127,6 +127,9 @@ if coupling_map:
 subgraph_size = cal_dict.get("subgraph_size", None)
 print("Create layout graph from backend.")
 graph = generate_layout_graph(backend, k=subgraph_size)
+# double check if graph is connected!
+if not nx.is_connected(graph):
+    raise ValueError("Detected isolated nodes in layout graph!")
 
 # add graph nodes as initial layout to passmanager calibration
 if pm_cal.initial_layout is not None:
