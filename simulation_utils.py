@@ -151,7 +151,7 @@ class EstimatorCalibration(Calibration):
 
             
         elif est_prim_str == "ibm_runtime":
-            sub_cat = ["optimization_level", "resilience_level", "max_execution_time", "transpilation_options", "resilience_options", "execution_options", "environment_options", "simulator_options"]
+            sub_cat = ["default_shots", "optimization_level", "resilience_level", "use_simulator", "seed_estimator", "dynamical_decoupling_options", "max_execution_time", "resilience_options", "execution_options", "twirling_options", "environment_options", "simulator_options"]
             sub_cat.sort()
 
             est_opt_keys_sorted = sorted(list(est_opt.keys()))
@@ -164,23 +164,36 @@ class EstimatorCalibration(Calibration):
                 err_mitig_meth = 0
                 print("error mitigation method is undefined. Set it to {} as default.".format(err_mitig_meth))
                 est_opt["resilience_level"] = err_mitig_meth
+
+            use_simulator = est_opt["use_simulator"]
+            if not isinstance(use_simulator, bool):
+                raise TypeError("flag use_simulator must be bool!")
             
             circ_opt_lvl = est_opt["optimization_level"]
             if circ_opt_lvl is None:
                 circ_opt_lvl = 0
                 print("circuit optimization level is undefined. Set it to {} as default.".format(circ_opt_lvl))
                 est_opt["optimization_level"] = circ_opt_lvl
+            elif not isinstance(circ_opt_lvl, int):
+                raise TypeError("optimization level must be a integer from [0,1] or None!")
+            else:
+                if circ_opt_lvl < 0:
+                    raise ValueError("optimization level must be a integer from [0,1] or None!")
+                elif circ_opt_lvl > 1:
+                    raise ValueError("optimization level must be a integer from [0,1] or None!")
 
-            if not isinstance(est_opt["transpilation_options"], Dict):
-                raise ValueError("transpilation options must be a dictionary")
+            if not isinstance(est_opt["dynamical_decoupling_options"], Dict):
+                raise TypeError("dynamical decoupling options must be a dictionary")
             if not isinstance(est_opt["resilience_options"], Dict):
-                raise ValueError("resilience options must be a dictionary")
+                raise TypeError("resilience options must be a dictionary")
             if not isinstance(est_opt["execution_options"], Dict):
-                raise ValueError("execution options must be a dictionary")
+                raise TypeError("execution options must be a dictionary")
+            if not isinstance(est_opt["twirling_options"], Dict):
+                raise TypeError("twirling options must be a dictionary")
             if not isinstance(est_opt["environment_options"], Dict):
-                raise ValueError("environment options must be a dictionary")
+                raise TypeError("environment options must be a dictionary")
             if not isinstance(est_opt["simulator_options"], Dict):
-                raise ValueError("simulator options must be a dictionary")
+                raise TypeError("simulator options must be a dictionary")
             
             if len(est_opt["simulator_options"].keys()) != 1:
                 raise ValueError("Detected more than one element in simulator options dictionary! All elements besides key seed_simulator will be ignored. Noise model, coupling map and basis gate set are extracted from backend.")
@@ -188,11 +201,29 @@ class EstimatorCalibration(Calibration):
                 raise ValueError("Missing key seed_simulator in simulator options")
                         
             # if shots is not set, set it to default
-            shots = est_opt["execution_options"].get("shots", None)
+            shots = est_opt["default_shots"]
             if shots is None:
                 shots = 1024
                 print("number of shots is undefined. Set it to {} as default.".format(shots))
-                est_opt["execution_options"]["shots"] = shots
+                est_opt["default_shots"] = shots
+            elif not isinstance(shots, int):
+                raise TypeError("Default number of shots must be a positive non-zero integer or None!")
+            else:
+                if shots <= 0:
+                    raise ValueError("Default number of shots must be a positive non-zero integer or None!")
+
+            max_execution_time = est_opt["max_execution_time"]
+            if max_execution_time is None:
+                max_execution_time = 10800
+                print("max. execution time is undefined. Set it to {} as default".format(max_execution_time))
+            elif not isinstance(max_execution_time, int):
+                raise TypeError("max. execution time must be a positive, non-zero integer in range [1, 10800] or None! The value defines the maximal executation time of the estimator in seconds.")
+            else:
+                if max_execution_time < 1:
+                    raise ValueError("max. execution time must be a positive, non-zero integer in range [1, 10800] or None! The value defines the maximal executation time of the estimator in seconds.")
+                elif max_execution_time > 108000:
+                    raise ValueError("max. execution time must be a positive, non-zero integer in range [1, 10800] or None! The value defines the maximal executation time of the estimator in seconds.")
+
         else:
             raise ValueError("estimator string {} does not match any supported string!".format(est_prim_str))
         return est_opt
@@ -244,7 +275,7 @@ class EstimatorCalibration(Calibration):
 
             circ_opt_lvl = self.optimization_level
             
-            shots = self.execution_options.get("shots")
+            shots = self.default_shots
             # IBM estimator always uses abelian_grouping 
             # https://quantumcomputing.stackexchange.com/questions/34694/is-qiskits-estimator-primitive-running-paulistrings-in-parallel
             abelian_grouping = True
@@ -269,41 +300,63 @@ class EstimatorCalibration(Calibration):
                 data[i] = "None"
 
         return header, data
-
-def _get_ibm_runtime_options(est_cal_in: EstimatorCalibration,
-                             backend: BackendV2) -> qir.options.Options:
+    
+def _get_estimator_options(est_cal_in: EstimatorCalibration,
+                           backend: BackendV2) -> qir.options.EstimatorOptions:
     est_cal = copy.deepcopy(est_cal_in)
-    # Handle qiskit_ibm_runtime.options.utils UnsetType
-    for k, v in est_cal.simulator_options.items():
-        if v is None:
-            est_cal.simulator_options[k] = Unset
-
-    for k, v in est_cal.transpilation_options.items():
-        if v is None:
-            est_cal.transpilation_options[k] = Unset
-
+    
     if est_cal.estimator_str == "ibm_runtime":
-        simulator_options = {"seed_simulator": est_cal.simulator_options["seed_simulator"]}
-        #simulator_options = copy.deepcopy(est_cal.simulator_options)
-        noise_model = NoiseModel.from_backend(backend)
-        coupling_map = backend.coupling_map
-        # coupling_map= [list(t) for t in list(backend.coupling_map.get_edges())
-        basis_gates = noise_model.basis_gates
-        simulator_options["noise_model"] = noise_model
-        simulator_options["coupling_map"] = coupling_map if coupling_map is not None else Unset
-        simulator_options["basis_gates"] = basis_gates
-        options = qir.options.Options(optimization_level=est_cal.optimization_level, 
-                                      resilience_level=est_cal.resilience_level, 
-                                      max_execution_time=est_cal.max_execution_time, 
-                                      transpilation=est_cal.transpilation_options,
-                                      resilience=est_cal.resilience_options,
-                                      execution=est_cal.execution_options,
-                                      environment=est_cal.environment_options,
-                                      simulator=simulator_options)
+        # Handle qiskit_ibm_runtime.options.utils UnsetType
+        if est_cal.seed_estimator is None:
+            est_cal.seed_estimator = Unset
+        if est_cal.execution_options["rep_delay"] is None:
+            est_cal.execution_options["rep_delay"] = Unset
+        
+        seed_simulator = est_cal.simulator_options["seed_simulator"]
+        if seed_simulator is None:
+            seed_simulator = Unset
+        if est_cal.use_simulator:
+            simulator_options = {"seed_simulator": seed_simulator}
+            #simulator_options = copy.deepcopy(est_cal.simulator_options)
+            noise_model = NoiseModel.from_backend(backend)
+            coupling_map = backend.coupling_map
+            # coupling_map= [list(t) for t in list(backend.coupling_map.get_edges())
+            basis_gates = noise_model.basis_gates
+            simulator_options["noise_model"] = noise_model
+            simulator_options["coupling_map"] = coupling_map if coupling_map is not None else Unset
+            simulator_options["basis_gates"] = basis_gates
+            options = qir.options.EstimatorOptions(default_shots = est_cal.default_shots,
+                                                   optimization_level=est_cal.optimization_level, 
+                                                   resilience_level=est_cal.resilience_level, 
+                                                   seed_estimator = est_cal.seed_estimator,
+                                                   dynamical_decoupling = est_cal.dynamical_decoupling_options,
+                                                   resilience=est_cal.resilience_options,
+                                                   execution=est_cal.execution_options,
+                                                   max_execution_time=est_cal.max_execution_time, 
+                                                   twirling=est_cal.twirling_options,
+                                                   simulator=simulator_options,
+                                                   environment=est_cal.environment_options,
+                                                   experimental = Unset)
+        else:
+            options = qir.options.EstimatorOptions(default_shots = est_cal.default_shots,
+                                                   optimization_level=est_cal.optimization_level, 
+                                                   resilience_level=est_cal.resilience_level, 
+                                                   seed_estimator = est_cal.seed_estimator,
+                                                   dynamical_decoupling = est_cal.dynamical_decoupling_options,
+                                                   resilience=est_cal.resilience_options,
+                                                   execution=est_cal.execution_options,
+                                                   max_execution_time=est_cal.max_execution_time, 
+                                                   twirling=est_cal.twirling_options,
+                                                   environment=est_cal.environment_options,
+                                                   experimental = Unset)
         return options
+        
+    else:
+        raise ValueError("Estimator calibration string does not match expected string!")
+    
 
 def get_estimator(est_cal: EstimatorCalibration,
-                    mode: Union[qir.Session, BackendV2, None] = None) -> BaseEstimator:
+                  mode: Union[qir.Session, qir.Batch, BackendV2, None] = None) -> BaseEstimator:
     if est_cal.estimator_str == "aer":
         est = AerEstimator(backend_options=est_cal.backend_options, 
                            transpile_options=est_cal.transpilation_options, 
@@ -313,27 +366,35 @@ def get_estimator(est_cal: EstimatorCalibration,
                            abelian_grouping=est_cal.abelian_grouping)
         return est
     elif est_cal.estimator_str == "ibm_runtime":
+        # extract backend
         if isinstance(mode, qir.Session):
             backend = mode._backend
-            options = _get_ibm_runtime_options(est_cal, backend)
-            est = qir.Estimator(session=mode, options=options)
+        elif isinstance(mode, qir.Batch):
+            backend = mode.backend()
         elif isinstance(mode, BackendV2):
             backend = mode
-            options = _get_ibm_runtime_options(est_cal, backend)
-            est = qir.Estimator(backend=mode, options=options)
         else:
-            raise ValueError("Unknown type for mode variable!")
+            raise TypeError("Unknown type for mode variable!")
+        options = _get_estimator_options(est_cal, backend)
+        est = qir.EstimatorV2(mode=mode, options=options)
         return est
         
     else:
         raise ValueError("estimator string {} does not match any supported string!".format(est_cal.estimator_str))
     
 
-def get_EstimatorCalibration_from_dict(est_cal_dict: dict) -> EstimatorCalibration:
-
+def get_EstimatorCalibration_from_dict(est_cal_dict_in: dict) -> EstimatorCalibration:
+    est_cal_dict = copy.deepcopy(est_cal_dict_in)
     est_prim_str = est_cal_dict.pop("estimator_str", None)
     if est_prim_str is None:
         raise ValueError("could not retrieve estimator string from file!")
+    elif est_prim_str == "ibm_runtime":
+        dd_options = est_cal_dict.get("dynamical_decoupling_options", None)
+        if dd_options is None:
+            est_cal_dict["dynamical_decoupling_options"] = {"enable": False, 
+                                                            "sequence_type": "XX",
+                                                            "extra_slack_distribution": "middle",
+                                                            "scheduling_method": "alap"}
     
     name = est_cal_dict.pop("name", None)
 
@@ -357,6 +418,10 @@ def get_EstimatorCalibration_from_yaml(fname: str) -> EstimatorCalibration:
     if est_cal_dict is None:
         raise ValueError("Something went wrong while reading in yaml text file! No estimator calibration subdictionary found!")
     
+    use_simulator = est_cal_dict.get("use_simulator", None)
+    if use_simulator is None:
+        est_cal_dict["use_simulator"] = cal_dict["run_locally"]
+
     return get_EstimatorCalibration_from_dict(est_cal_dict)
     
 
@@ -369,7 +434,7 @@ def get_EstimatorCalibration_from_pickle(fname: str) -> EstimatorCalibration:
         est_cal = pickle.load(f)
 
     if not isinstance(est_cal, EstimatorCalibration):
-        raise ValueError("loaded pickle object is no EstimatorCalibration!")
+        raise TypeError("loaded pickle object is no EstimatorCalibration!")
 
     return est_cal
 

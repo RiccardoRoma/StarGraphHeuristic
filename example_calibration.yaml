@@ -12,31 +12,33 @@ native_basis_gates_str: "fake_fractional"
 noise_model_id: 0
 noise_model_str: ""
 estimator_calibration:
+  default_shots: 4096
   environment_options:
     callback: null
     job_tags: null
     log_level: WARNING
   execution_options:
     init_qubits: true
-    shots: 4096
-  max_execution_time: null
+    rep_delay: null
+  max_execution_time: 10800
   optimization_level: 0
-  resilience_level: 2
+  resilience_level: 1
   resilience_options:
-    extrapolator: LinearExtrapolator
-    noise_amplifier: LocalFoldingAmplifier
-    noise_factors:
-    - 1
-    - 2
-    - 3
+    measure_mitigation: true
+    measure_noise_learning:
+      num_randomizations: 32
+      shots_per_randomization: "auto"
+    zne_mitigation: false
+    pec_mitigation: false
   simulator_options:
     seed_simulator: null
-  transpilation_options:
-    approximation_degree: 1.0
-    initial_layout: null
-    layout_method: trivial
-    routing_method: basic
-    skip_transpilation: true
+  twirling_options:
+    enable_gates: false
+    enable_measure: true
+    num_randomizations: "auto"
+    shots_per_randomization: "auto"
+    strategy: active-accum
+  seed_estimator: null
   estimator_str: ibm_runtime
   name: EstimatorCalibration
 passmanager_calibration:
