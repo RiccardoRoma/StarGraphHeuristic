@@ -28,9 +28,6 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 import argparse
 
-## To-Do: encapsule running of simulation in a function taking inputs "paht/to/calibration_file.yaml", sim_id, "path/to/result_dir"
-# Can keep a __main__ environment such that the script is still executable
-
 # Setup argument parser to read in required inputs from cmd line
 parser = argparse.ArgumentParser(description='Script to run heuristic circuit for generating GHZ state on IBM hardware')
 parser.add_argument('simulation_id', metavar='id', type=str, help='a unique id for this simulation run')
@@ -167,17 +164,13 @@ transp_circ = utils.transpile_circuits(pass_manager, [curr_circ], transpilation_
 
 isa_observable = observalbe.apply_layout(transp_circ.layout)
 
-## To-Do: We are running just one circuit! Remove Session environment and run it as a single job.
-with Session(service, backend=backend) as session:
-    
-    # create estimator from calibration
-    estimator = utils.get_estimator(est_cal, mode=session)
-    job = estimator.run([(transp_circ, isa_observable)])
-    est_result = job.result()
-    # extract value from 0-d numpy array
-    fidelity = float(est_result[0].data.evs)
-    fidelity_std = est_result[0].data.stds
-##
+# create estimator from calibration
+estimator = utils.get_estimator(est_cal, mode=backend)
+job = estimator.run([(transp_circ, isa_observable)])
+est_result = job.result()
+# extract value from 0-d numpy array
+fidelity = float(est_result[0].data.evs)
+fidelity_std = est_result[0].data.stds
 
 # save the result and all calibration data, graph, transpiled circuit, etc. in the result dir
 # save to csv file
