@@ -32,6 +32,8 @@ import argparse
 parser = argparse.ArgumentParser(description='Script to run heuristic circuit for generating GHZ state on IBM hardware')
 parser.add_argument('simulation_id', metavar='id', type=str, help='a unique id for this simulation run')
 parser.add_argument('-f', '--file', dest='fname', metavar='/path/to/filename.yaml', action='store', type=str, default=None, help='path to yaml file which contains the calibration data of this simulation run.')
+parser.add_argument('--show_graph', action='store_true', help="Set this flag to true to show the layout graph plot before running simulation.")
+
 
 args = parser.parse_args()
 
@@ -43,6 +45,8 @@ if args.fname is None:
     cal_file = "example_calibration.yaml"
 else:
     cal_file = args.fname
+
+show_graph = args.show_graph
 
 # get estimator calibration
 est_cal = utils.get_EstimatorCalibration_from_yaml(cal_file)
@@ -148,7 +152,7 @@ curr_circ, curr_init_graph, curr_star_graph = cgsc.create_ghz_state_circuit_grap
 # draw graph and save the plot
 fname_graph = f"sim_{sim_id}_layout_graph_backend_{backend_str}.pdf"
 fname_graph = os.path.join(result_dir, fname_graph)
-mgo.draw_graph(curr_init_graph, title="Layout graph from "+backend_str+ " backend", fname=fname_graph)
+mgo.draw_graph(curr_init_graph, title="Layout graph from "+backend_str+ " backend", fname=fname_graph, show_plot=show_graph)
 
 # Get fidelity observable
 #observalbe = SparsePauliOp(["X"*backend.num_qubits], coeffs=np.asarray([1.0])) # This is just a dummy observable used for debugging

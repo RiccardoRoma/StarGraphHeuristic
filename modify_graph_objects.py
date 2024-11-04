@@ -35,7 +35,7 @@ import time
 #                 node_size=500)
 #         return G
 
-def draw_graph(graph, show_weights=False, node_color='yellow', layout="circular", title="", fname=""):
+def draw_graph(graph, show_weights=False, node_color='yellow', layout="circular", title="", fname="", show_plot=True):
     """
     Draw the given graph using NetworkX and Matplotlib.
     """
@@ -71,7 +71,8 @@ def draw_graph(graph, show_weights=False, node_color='yellow', layout="circular"
         plt.title(title)
     if len(fname) > 0:
         plt.savefig(fname, bbox_inches="tight")
-    plt.show()
+    if show_plot:
+        plt.show()
 
 
 def update_graph_center(G,new_center):
