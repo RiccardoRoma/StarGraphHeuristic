@@ -1,15 +1,15 @@
 #!/bin/bash
 
-# Directory containing your test scripts
+# Directory containing our test scripts
 TEST_DIR="./test_simulations/"
 # File to store the results
 RESULTS_FILE="runtests.log"
 # Clear previous results
 > "$RESULTS_FILE"
-# remove all previous results for test_cases
+# remove all previous results of the test_cases
 rm -r ./simulation_results/runtests/*
 
-# Loop over each test script in the directory
+# Loop over each test case in the directory
 cnt=0
 for test_script in "$TEST_DIR"/*.yaml; do
   echo "Running simulation $cnt with calibration $test_script..."
@@ -32,7 +32,7 @@ for test_script in "$TEST_DIR"/*.yaml; do
   ((cnt++))
 done
 
-# Optional: Display a summary
+# Display a summary
 echo "Test Results Summary:"
 cat "$RESULTS_FILE"
 
