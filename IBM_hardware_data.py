@@ -82,7 +82,7 @@ def generate_layout_graph(backend: BackendV2,
             G.remove_node(i)
         if add_errs_as_weigths:
             # add error [%] as a node weight 
-            G.nodes[i]['weight'] = round(meas_err * 100, 2)
+            G.nodes[i]['weight'] = round(meas_err, 4)
     
     # check two-qubit gate error (throw out those edges with too large error)
     two_q_gate_err_thrs = 0.4 # error threshold
@@ -120,7 +120,7 @@ def generate_layout_graph(backend: BackendV2,
             G.remove_edge(i, j)
         elif add_errs_as_weigths:
             # add error [%] as an edges weight
-            G[i][j]['weight'] = round(two_q_gate_err * 100, 2)
+            G[i][j]['weight'] = round(two_q_gate_err, 4)
 
     # check if some nodes got disconnected
     isolated_nodes = list(nx.isolates(G))
@@ -135,7 +135,7 @@ def generate_layout_graph(backend: BackendV2,
 
 def find_connected_subgraph_with_lowest_weight(graph: Graph, 
                              k: int, 
-                             weight_cost_trsh: float = 0.15) -> Graph:
+                             weight_cost_trsh: float = 0.05) -> Graph:
     if not isinstance(k, int):
         raise ValueError("k is expected to be integer!")
     
