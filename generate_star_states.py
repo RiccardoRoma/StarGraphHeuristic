@@ -39,4 +39,15 @@ def generate_star_state(G: Graph, circ: QuantumCircuit) -> QuantumCircuit:
 
     return circ
 
+
+def generate_ghz_states(G: Graph, circ: QuantumCircuit) -> QuantumCircuit:
+
+    center_index = mgo.get_graph_center(G)
+    circ.h(center_index)
+
+    for q in G.nodes():
+        circ.cx(control= center_index, target= q) if q != center_index else None
+
+    return circ
+
     
