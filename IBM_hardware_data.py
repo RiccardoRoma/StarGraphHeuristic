@@ -8,9 +8,10 @@ from qiskit_ibm_provider import IBMProvider
 from qiskit_ibm_runtime import QiskitRuntimeService, Session, Options, IBMBackend
 from qiskit.transpiler import CouplingMap
 from qiskit_aer.noise import NoiseModel
+from concurrent.futures import ThreadPoolExecutor
 
 # import modify_graph_objects as mgo
-import networkx as nx
+
 
 
 # This is a small code for getting number of qubits and couplinng map from a certain IBM device.
@@ -70,7 +71,7 @@ def generate_layout_graph(
             G.remove_node(i)
         if add_errs_as_weigths:
             # add error [%] as a node weight
-            G.nodes[i]["weight"] = round(meas_err * 100, 2)
+            G.nodes[i]["weight"] = round(meas_err, 4)
 
     # check two-qubit gate error (throw out those edges with too large error)
     two_q_gate_err_thrs = 0.4  # error threshold
@@ -127,7 +128,7 @@ def generate_layout_graph(
             G.remove_edge(i, j)
         elif add_errs_as_weigths:
             # add error [%] as an edges weight
-            G[i][j]["weight"] = round(two_q_gate_err * 100, 2)
+            G[i][j]["weight"] = round(two_q_gate_err, 4)
 
     # check if some nodes got disconnected
     isolated_nodes = list(nx.isolates(G))
@@ -138,10 +139,6 @@ def generate_layout_graph(
         return find_connected_subgraph_with_lowest_weight(G, k)
     else:
         return G
-
-
-import networkx as nx
-from concurrent.futures import ThreadPoolExecutor
 
 
 def find_connected_subgraph_with_lowest_weight(
@@ -230,50 +227,4 @@ def find_connected_subgraph_with_lowest_weight(
     return graph.subgraph(curr_best_subgraph[0])
 
 
-# def find_connected_subgraph_with_lowest_weight(graph: Graph,
-#                              k: int,
-#                              weight_cost_trsh: float = 0.01) -> Graph:
-#     if not isinstance(k, int):
-#         raise ValueError("k is expected to be integer!")
 
-#     if k > len(graph):
-#         raise ValueError("k cannot be larger than the number of nodes in the graph")
-
-#     # Function to calculate the combined weight of a subgraph
-#     def combined_weight_cost(subgraph: list) -> float:
-#         # calculate the node weigth cost
-#         node_weight_cost = sum(graph.nodes[n].get('weight', 0) for n in subgraph)/len(subgraph) # mean weight
-#         # calculate the node weigth cost
-#         edge_weight_cost = sum(graph[u][v].get('weight', 0) for u, v in graph.subgraph(subgraph).edges())/len(graph.subgraph(subgraph).edges()) # mean weight
-#         return round(node_weight_cost + edge_weight_cost, 2)
-
-#     def is_connected(subgraph: list):
-#         # Check if the subgraph is connected
-#         return nx.is_connected(graph.subgraph(subgraph))
-
-#     def backtrack(current_set: list,
-#                   best_weight_cost: list[float],
-#                   best_subgraph: list[list[int]]):
-#         if len(current_set) == k:
-#             if is_connected(current_set):
-#                 weight_cost = combined_weight_cost(current_set)
-#                 if weight_cost < best_weight_cost[0]:
-#                     best_weight_cost[0] = weight_cost
-#                     best_subgraph[0] = current_set.copy()
-#             return
-
-#         for neighbor in set.union(*(set(graph.neighbors(node)) for node in current_set)):
-#             if neighbor not in current_set:
-#                 current_set.append(neighbor)
-#                 backtrack(current_set, best_weight_cost, best_subgraph)
-#                 current_set.pop()
-
-#                 if best_weight_cost[0] <= weight_cost_trsh:  # Early exit if we find a subgraph which has a weight cost below the set threshold
-#                     return
-
-#     curr_best_weight_cost = [float('inf')]
-#     curr_best_subgraph = [[]]
-#     for node in graph.nodes():
-#         backtrack([node], curr_best_weight_cost, curr_best_subgraph)
-
-#     return graph.subgraph(curr_best_subgraph[0])
