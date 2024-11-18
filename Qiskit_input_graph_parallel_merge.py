@@ -55,7 +55,7 @@ def generate_random_graph(n, p, use_barabasi):
 
 
 
-def generate_ibm_graph(nodes_list, edges_list, use_barabasi):
+def generate_graph(nodes_list, edges_list, use_barabasi):
     
         # Create a graph G
         G = nx.Graph()
@@ -72,21 +72,22 @@ def generate_ibm_graph(nodes_list, edges_list, use_barabasi):
         #         node_size=500)
         return G 
 
-def draw_graph(graph, node_color='yellow', layout="circular", show: bool = True):
+def draw_graph(graph, **kwargs):
     """
     Draw the given graph using NetworkX and Matplotlib.
     """
-    if layout == "circular":
-        pos = nx.circular_layout(graph)
-    else:
-        pos = nx.spring_layout(graph)  # Default to spring layout if layout is not circular
-
-    plt.figure(figsize=(8, 8))
-    nx.draw(graph, pos, with_labels=True, node_color=node_color, node_size=500, font_size=10, font_color='black', font_weight='bold')
-    plt.title("Graph Visualization")
-    if show:
-        plt.show()
-
+    # Default values
+    if kwargs.get("node_color", None) is None:
+        kwargs["node_color"] = "yellow"
+    if kwargs.get("layout", None) is None:
+        kwargs["layout"] = "circular"
+    if kwargs.get("show", None) is None:
+        kwargs["show"] = True
+    if kwargs.get("fig_size", None) is None:
+        kwargs["fig_size"] = (8, 8)
+    if kwargs.get("title", None) is None:
+        kwargs["title"] = "Graph Visualization"
+    mgo.draw_graph(graph, **kwargs)
 
 
 # MS=[] # a list to store all small stars and merging sequence.  
@@ -368,16 +369,22 @@ def parallel_merge(G, msq):
 
     return Bt, msq
 
-def draw_binary_tree(Bt):
-    # Use the graphviz_layout with 'twopi' for a radial tree-like structure
-    #pos = nx.drawing.nx_pydot.graphviz_layout(Bt, prog='dot') # Deprecated!
-    pos = nx.nx_agraph.graphviz_layout(Bt, prog="dot")
-
-    # Draw the binary tree
-    plt.figure(figsize=(8, 6))
-    nx.draw(Bt, pos, with_labels=True, node_color="lightblue", node_size=500, font_size=10, font_weight="bold", edge_color="gray")
-    plt.title("Binary Tree Representation of merging sequence")
-    plt.show()
+def draw_binary_tree(Bt, **kwargs):
+    # Default values
+    if kwargs.get("layout", None) is None:
+        kwargs["layout"] = "graphviz_dot"
+    if kwargs.get("node_color", None) is None:
+        kwargs["node_color"] = "lightblue"
+    if kwargs.get("show", None) is None:
+        kwargs["show"] = True
+    if kwargs.get("fig_size", None) is None:
+        kwargs["fig_size"] = (8, 6)
+    if kwargs.get("title", None) is None:
+        kwargs["title"] = "Binary Tree Representation of merging sequence"
+    if kwargs.get("edge_color", None) is None:
+        kwargs["edge_color"] = "gray"
+    
+    mgo.draw_graph(Bt, **kwargs)
 
 def find_root(tree: nx.DiGraph) -> int:
     """Find the root node of a directed graph (tree)."""
@@ -544,7 +551,7 @@ def main():
     # Edge list (each tuple represents an edge between two nodes)
     edges_list = [(0, 4), (1, 6), (2, 3), (3, 7), (4, 9), (5, 6), (6, 8), (7, 9), (8, 9), (0, 10), (10,11),(11,12)]
     
-    init_graph = generate_ibm_graph(nodes_list, edges_list, use_barabasi=False)
+    init_graph = generate_graph(nodes_list, edges_list, use_barabasi=False)
     draw_graph(init_graph)
     # calculate_gate_ss(generate_ibm_graph(nodes_list, edges_list, use_barabasi=False))
     #_,msq,_= calculate_msq(generate_random_graph(10, 0.1, use_barabasi=False))
@@ -564,7 +571,7 @@ if __name__ == "__main__":
     # Edge list (each tuple represents an edge between two nodes)
     edges_list = [(0, 4), (1, 6), (2, 3), (3, 7), (4, 9), (5, 6), (6, 8), (7, 9), (8, 9), (0, 10), (10,11),(11,12)]
     
-    init_graph = generate_ibm_graph(nodes_list, edges_list, use_barabasi=False)
+    init_graph = generate_graph(nodes_list, edges_list, use_barabasi=False)
     draw_graph(init_graph, show=False)
     # calculate_gate_ss(generate_ibm_graph(nodes_list, edges_list, use_barabasi=False))
     #_,msq,_= calculate_msq(generate_random_graph(10, 0.1, use_barabasi=False))
