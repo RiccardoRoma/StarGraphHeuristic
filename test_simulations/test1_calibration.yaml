@@ -1,4 +1,4 @@
-result_dir: /Users/as56ohop/Documents/NAS_sync/PhD/code/ghz_state_generation_in_com_networks/ghz_generation_heuristic_alg/simulation_results
+result_dir: /Users/as56ohop/Documents/NAS_sync/PhD/code/ghz_state_generation_in_com_networks/ghz_generation_heuristic_alg/simulation_results/runtests/
 backend_str: aer_simulator
 use_premium_access: false
 run_locally: true

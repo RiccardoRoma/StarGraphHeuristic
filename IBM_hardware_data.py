@@ -37,8 +37,22 @@ def generate_layout_graph(
 ) -> Graph:
     # get nodes list
     nodes_list = list(range(backend.num_qubits))
+    # check available two-qubit gate
+    if "cx" in backend.operation_names:
+        two_qubit_gate_str = "cx"
+    elif "ecr" in backend.operation_names:
+        two_qubit_gate_str = "ecr"
     # get edges list
-    edges_list = list(backend.coupling_map.get_edges())
+    coupling_map = backend.coupling_map
+    if coupling_map is None:
+        # if couling map is None, create coupling map from target 
+        edges_list = []
+        for i in nodes_list:
+            for j in range(i,len(nodes_list)):
+                if (i,j) in list(backend.target[two_qubit_gate_str].keys()):
+                    edges_list.append((i,j))
+    else:
+        edges_list = list(backend.coupling_map.get_edges())
 
     noise_model = NoiseModel.from_backend(backend)
     # generate graph object from nodes list and edges list
@@ -70,16 +84,13 @@ def generate_layout_graph(
             # delete node from graph if this is the case
             G.remove_node(i)
         if add_errs_as_weigths:
-            # add error [%] as a node weight
-            G.nodes[i]["weight"] = round(meas_err, 4)
 
+            # add error [%] as a node weight 
+            G.nodes[i]['weight'] = round(meas_err, 4)
+    
     # check two-qubit gate error (throw out those edges with too large error)
-    two_q_gate_err_thrs = 0.4  # error threshold
-    # check available two-qubit gate
-    if "cx" in backend.operation_names:
-        two_qubit_gate_str = "cx"
-    elif "ecr" in backend.operation_names:
-        two_qubit_gate_str = "ecr"
+    two_q_gate_err_thrs = 0.4 # error threshold
+
     # iterate through all edges
     for i, j in G.edges:
         # construct both tuple representations of the current edge
@@ -130,6 +141,7 @@ def generate_layout_graph(
             # add error [%] as an edges weight
             G[i][j]["weight"] = round(two_q_gate_err, 4)
 
+
     # check if some nodes got disconnected
     isolated_nodes = list(nx.isolates(G))
     # remove isolated nodes
@@ -141,9 +153,10 @@ def generate_layout_graph(
         return G
 
 
-def find_connected_subgraph_with_lowest_weight(
-    graph: nx.Graph, k: int, weight_cost_trsh: float = 0.05
-) -> nx.Graph:
+def find_connected_subgraph_with_lowest_weight(graph: Graph, 
+                             k: int, 
+                             weight_cost_trsh: float = 0.05) -> Graph:
+
     if not isinstance(k, int):
         raise ValueError("k is expected to be integer!")
 

@@ -14,7 +14,7 @@ import copy
 from dotenv import load_dotenv
 from qiskit_ibm_provider import IBMProvider
 from qiskit_ibm_runtime import QiskitRuntimeService, Session, Options
-from qiskit_ibm_runtime import Estimator
+from qiskit_ibm_runtime import EstimatorV2
 from qiskit_ibm_runtime.options.utils import Unset
 from qiskit.quantum_info import SparsePauliOp
 from IBM_hardware_data import generate_layout_graph
@@ -27,10 +27,13 @@ import yaml
 from datetime import datetime
 import matplotlib.pyplot as plt
 import argparse
+
 # Setup argument parser to read in required inputs from cmd line
 parser = argparse.ArgumentParser(description='Script to run heuristic circuit for generating GHZ state on IBM hardware')
 parser.add_argument('simulation_id', metavar='id', type=str, help='a unique id for this simulation run')
 parser.add_argument('-f', '--file', dest='fname', metavar='/path/to/filename.yaml', action='store', type=str, default=None, help='path to yaml file which contains the calibration data of this simulation run.')
+parser.add_argument('--show_graph', action='store_true', help="Set this flag to true to show the layout graph plot before running simulation.")
+
 
 args = parser.parse_args()
 
@@ -42,6 +45,8 @@ if args.fname is None:
     cal_file = "example_calibration.yaml"
 else:
     cal_file = args.fname
+
+show_graph = args.show_graph
 
 # get estimator calibration
 est_cal = utils.get_EstimatorCalibration_from_yaml(cal_file)
@@ -147,7 +152,7 @@ curr_circ, curr_init_graph, curr_star_graph = cgsc.create_ghz_state_circuit_grap
 # draw graph and save the plot
 fname_graph = f"sim_{sim_id}_layout_graph_backend_{backend_str}.pdf"
 fname_graph = os.path.join(result_dir, fname_graph)
-mgo.draw_graph(curr_init_graph, title="Layout graph from "+backend_str+ " backend", fname=fname_graph)
+mgo.draw_graph(curr_init_graph, title="Layout graph from "+backend_str+ " backend", fname=fname_graph, show_plot=show_graph)
 
 # Get fidelity observable
 #observalbe = SparsePauliOp(["X"*backend.num_qubits], coeffs=np.asarray([1.0])) # This is just a dummy observable used for debugging
@@ -163,29 +168,27 @@ transp_circ = utils.transpile_circuits(pass_manager, [curr_circ], transpilation_
 
 isa_observable = observalbe.apply_layout(transp_circ.layout)
 
-## To-Do: We are running just one circuit! Remove Session environment and run it as a single job.
-with Session(service, backend=backend) as session:
-    ## To-Do: Update Estimator to V2 version
-    # create estimator from calibration
-    estimator = utils.get_estimator(est_cal, mode=session)
-    ##
-
-    # run circuit and observable on backend
-    job = estimator.run(transp_circ, isa_observable)
-    est_result = job.result()
-
-    fidelity = est_result.values[0]
-##
+# create estimator from calibration
+estimator = utils.get_estimator(est_cal, mode=backend)
+job = estimator.run([(transp_circ, isa_observable)])
+est_result = job.result()
+# extract value from 0-d numpy array
+fidelity = float(est_result[0].data.evs)
+fidelity_std = est_result[0].data.stds
 
 # save the result and all calibration data, graph, transpiled circuit, etc. in the result dir
 # save to csv file
 header_est, data_est = est_cal.get_filevector()
 header_pm, data_pm = pm_cal.get_filevector()
-csv_header = ["fidelity"] 
+csv_header = ["fidelity", "fidelity_std"] 
 for k in backend_opt.keys():
     csv_header = csv_header + [k]
 csv_header = csv_header + header_est + header_pm
-csv_data = [fidelity] 
+csv_data = [fidelity]
+if fidelity_std is None:
+    csv_data = csv_data + ["None"]
+else:
+    csv_data = csv_data + [fidelity_std]
 for v in backend_opt.values():
     csv_data = csv_data + [v]
 csv_data = csv_data + data_est + data_pm
