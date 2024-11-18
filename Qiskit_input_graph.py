@@ -21,6 +21,7 @@ import math
 import csv
 import concurrent.futures 
 import time
+import modify_graph_objects as mgo
 
 
 def generate_random_graph(n, p, use_barabasi):
@@ -69,21 +70,22 @@ def generate_random_graph(n, p, use_barabasi):
 #                 node_size=500)
 #         return G 
 
-def draw_graph(graph, node_color='yellow', layout="circular", show: bool = True):
+def draw_graph(graph, **kwargs):
     """
     Draw the given graph using NetworkX and Matplotlib.
     """
-    if layout == "circular":
-        pos = nx.circular_layout(graph)
-    else:
-        pos = nx.spring_layout(graph)  # Default to spring layout if layout is not circular
-
-    plt.figure(figsize=(8, 8))
-    nx.draw(graph, pos, with_labels=True, node_color=node_color, node_size=500, font_size=10, font_color='black', font_weight='bold')
-    plt.title("Graph Visualization")
-    if show:
-        plt.show()
-
+    # Default values
+    if kwargs.get("node_color", None) is None:
+        kwargs["node_color"] = "yellow"
+    if kwargs.get("layout", None) is None:
+        kwargs["layout"] = "circular"
+    if kwargs.get("show", None) is None:
+        kwargs["show"] = True
+    if kwargs.get("fig_size", None) is None:
+        kwargs["fig_size"] = (8, 8)
+    if kwargs.get("title", None) is None:
+        kwargs["title"] = "Graph Visualization"
+    mgo.draw_graph(graph, **kwargs)
 
 
 # MS=[] # a list to store all small stars and merging sequence.  
