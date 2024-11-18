@@ -35,7 +35,7 @@ import time
 #                 node_size=500)
 #         return G
 
-def draw_graph(graph, show_weights=False, node_color='yellow', layout="circular", title="", fname=""):
+def draw_graph(graph, show_weights=False, fig_size=(16,9), node_color='yellow', layout="circular", title="", fname="", show=True):
     """
     Draw the given graph using NetworkX and Matplotlib.
     """
@@ -51,7 +51,7 @@ def draw_graph(graph, show_weights=False, node_color='yellow', layout="circular"
         print("Unknown layout string, use spring layout")
         pos = nx.spring_layout(graph)  # Default to spring layout if layout does not match any implemented layout
 
-    plt.figure(figsize=(16, 9))
+    plt.figure(figsize=fig_size)
     if show_weights:
         nx.draw(graph, pos, with_labels=False, node_color=node_color, node_size=500, font_size=10, font_color='black', font_weight='bold')
         # Draw node labels (including weights)
@@ -71,7 +71,9 @@ def draw_graph(graph, show_weights=False, node_color='yellow', layout="circular"
         plt.title(title)
     if len(fname) > 0:
         plt.savefig(fname, bbox_inches="tight")
-    plt.show()
+
+    if show:
+        plt.show()
 
 
 def update_graph_center(G,new_center):
