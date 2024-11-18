@@ -60,6 +60,8 @@ def create_ghz_state_circuit_debug(graph_orig: Graph,
 
 def create_ghz_state_circuit_graph(graph_orig: Graph,
                                    total_num_qubits: int, star = False) -> Tuple[QuantumCircuit, Graph]:
+    # False = GHZ state, True = star state
+
     # consistency check
     if max(list(graph_orig)) > total_num_qubits:
         raise ValueError("Node indices of input graph exceed total number of qubits in circuit!")
@@ -74,7 +76,7 @@ def create_ghz_state_circuit_graph(graph_orig: Graph,
     # qregs = QuantumRegister(len(graph_orig.nodes())) # number of nodes in initial graph is the number of qubits needed.
     # cregs = ClassicalRegister(len(subgraphs)-1) # if merging is sequentially than we need to measure (number of subgraphs - 1)-times
     # circ = QuantumCircuit(qregs, cregs)
-    #circ = QuantumCircuit(len(graph_orig.nodes))
+    # circ = QuantumCircuit(len(graph_orig.nodes))
     circ = QuantumCircuit(total_num_qubits)
 
     # # create seperate copy for star state generation

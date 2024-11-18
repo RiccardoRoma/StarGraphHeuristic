@@ -140,8 +140,11 @@ pm_cal.initial_layout = init_layout
 # create pass manager from calibration
 pass_manager = utils.get_passmanager(backend, pm_cal)
 
+# flag for ghz generation (False) or star graphs (True)
+star = False
+
 # create the circuit to generate GHZ state
-curr_circ, curr_init_graph, curr_star_graph = cgsc.create_ghz_state_circuit_graph(graph, backend.num_qubits)
+curr_circ, curr_init_graph, curr_star_graph = cgsc.create_ghz_state_circuit_graph(graph, backend.num_qubits, star=star)
 #curr_circ, curr_init_graph = cgsc.create_ghz_state_circuit_debug(graph, backend.num_qubits)
 
 # draw graph and save the plot
