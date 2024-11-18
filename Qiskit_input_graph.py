@@ -303,6 +303,54 @@ def calculate_msq(G, show_status: bool = True):
     return merging_edges_list, MSQ, sid_total_gates
 
 
+def sequential_merge(G: nx.Graph, msq: list[nx.Graph]):
+    # Create Binary tree graph Bt with nodes labeled 0, 1, ..., len(msq) - 1
+    Bt = nx.DiGraph()
+    Bt.add_nodes_from(range(len(msq)))
+    
+    # Keep track of the next available node index in Bt
+    next_node_label = len(msq)
+    
+    i = 0
+    # Iterate through msq
+    for j in range(1,len(msq)):
+        si = msq[i]
+        sj = msq[j]
+        # Find common edges between si and sj
+        common_edges = [e for e in G.edges if set(e).intersection(si.nodes()) and set(e).intersection(sj.nodes())]
+        if common_edges:
+            # Common edge found, print the first common edge
+            print(f"Common edge found between s{i} and s{j}: {common_edges[0]}")
+
+            # Add a new node to Bt
+            Bt.add_node(next_node_label)
+            Bt.add_edge(i, next_node_label)
+            Bt.add_edge(j, next_node_label)
+            print(f"Added new node {next_node_label} to Bt, connecting s{i} and s{j} to it.")
+
+            # Merge si and sj into a new sk
+            sk = nx.Graph()
+            sk.add_nodes_from(si.nodes())
+            sk.add_nodes_from(sj.nodes())
+            sk.add_edges_from(si.edges())
+            sk.add_edges_from(sj.edges())
+            sk.add_edges_from(common_edges)
+
+            # Add sk to msq and increment the next available node label
+            msq.append(sk)
+            i = next_node_label # last element in msq is now part of next merge
+            next_node_label += 1
+
+    if not nx.utils.graphs_equal(msq[-1], G):
+        raise ValueError("final graph after last merge does not coincide with initial graph!")
+    
+    return Bt, msq
+
+
+
+
+
+
 def main():
     # List of nodes
     nodes_list = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
