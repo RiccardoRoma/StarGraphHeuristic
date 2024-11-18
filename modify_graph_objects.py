@@ -35,10 +35,22 @@ import time
 #                 node_size=500)
 #         return G
 
-def draw_graph(graph, show_weights=False, fig_size=(16,9), node_color='yellow', layout="circular", title="", fname="", show=True):
+def draw_graph(graph, show_weights=False, fig_size=(16,9), node_color='yellow', layout="circular", title="", fname="", show=True, **kwargs):
     """
     Draw the given graph using NetworkX and Matplotlib.
     """
+    # Default values 
+    if kwargs.get("node_size", None) is None:
+        kwargs["node_size"] = 500
+    if kwargs.get("font_size", None) is None:
+        kwargs["font_size"] = 10
+    if kwargs.get("font_color", None) is None:
+        kwargs["font_color"] = "black"
+    if kwargs.get("font_weight", None) is None:
+        kwargs["font_weight"] = "bold"
+    
+
+
     if layout == "circular":
         pos = nx.circular_layout(graph)
     elif layout == "planar":
@@ -53,16 +65,29 @@ def draw_graph(graph, show_weights=False, fig_size=(16,9), node_color='yellow', 
 
     plt.figure(figsize=fig_size)
     if show_weights:
-        nx.draw(graph, pos, with_labels=False, node_color=node_color, node_size=500, font_size=10, font_color='black', font_weight='bold')
+        # handle show node label keyword
+        if kwargs.get("with_labels", None) is not None:
+            show_node_labels = kwargs.pop("with_labels")
+        else:
+            show_node_labels = True
+
+        #nx.draw(graph, pos, with_labels=False, node_color=node_color, node_size=500, font_size=10, font_color='black', font_weight='bold')
+        nx.draw(graph, pos, node_color=node_color, with_labels=False, **kwargs)
         # Draw node labels (including weights)
-        node_labels = {node: f"{node}\n({data.get('weight', 0.0)})" for node, data in graph.nodes(data=True)}
+        if show_node_labels:
+            node_labels = {node: f"{node}\n({data.get('weight', 0.0)})" for node, data in graph.nodes(data=True)}
+        else:
+            node_labels = {node: f"({data.get('weight', 0.0)})" for node, data in graph.nodes(data=True)}
         nx.draw_networkx_labels(graph, pos, labels=node_labels)
         
         # Draw edge labels
         edge_labels = nx.get_edge_attributes(graph, 'weight', default=0.0)
         nx.draw_networkx_edge_labels(graph, pos, edge_labels=edge_labels)
     else:
-        nx.draw(graph, pos, with_labels=True, node_color=node_color, node_size=500, font_size=10, font_color='black', font_weight='bold')
+        if kwargs.get("with_labels", None) is None:
+            kwargs["with_labels"] = True
+        #nx.draw(graph, pos, with_labels=True, node_color=node_color, node_size=500, font_size=10, font_color='black', font_weight='bold')
+        nx.draw(graph, pos, node_color=node_color, **kwargs)
 
 
     if len(title) == 0:
