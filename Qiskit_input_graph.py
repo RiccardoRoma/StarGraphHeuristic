@@ -661,7 +661,7 @@ if __name__ == "__main__":
     
     #draw_binary_tree(bt1, show=False)
     # Define MergePattern instance for parallel merge
-    ptrn1 = MergePattern(msq1, bt1)
+    ptrn1 = MergePattern(init_graph, msq1, bt1)
 
     _,msq2,_= calculate_msq(init_graph, show_status=False)
     # for i in range(len(msq)):   
@@ -672,7 +672,7 @@ if __name__ == "__main__":
 
     #draw_binary_tree(bt2, show=True)
     # Define MergePattern instance for sequential merge
-    ptrn2 = MergePattern(msq2, bt2)
+    ptrn2 = MergePattern(init_graph, msq2, bt2)
 
     # print all merging pairs
     print("merge pairs for parallel merge:")
