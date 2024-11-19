@@ -318,13 +318,15 @@ def sequential_merge(G: nx.Graph, msq: list[nx.Graph]):
         # Find common edges between si and sj
         common_edges = [e for e in G.edges if set(e).intersection(si.nodes()) and set(e).intersection(sj.nodes())]
         if common_edges:
-            # Common edge found, print the first common edge
-            print(f"Common edge found between s{i} and s{j}: {common_edges[0]}")
+            # Find a common edge to use for the merging
+            common_edge = random.choice(common_edges) # random choice
+            # Common edge found
+            print(f"Common edge found between s{i} and s{j}: {common_edge}")
 
             # Add a new node to Bt
             Bt.add_node(next_node_label)
-            Bt.add_edge(i, next_node_label)
-            Bt.add_edge(j, next_node_label)
+            Bt.add_edge(i, next_node_label, weight=common_edge) # add merging edge info
+            Bt.add_edge(j, next_node_label, weight=common_edge) # add merging edge info
             print(f"Added new node {next_node_label} to Bt, connecting s{i} and s{j} to it.")
 
             # Merge si and sj into a new sk
@@ -333,19 +335,26 @@ def sequential_merge(G: nx.Graph, msq: list[nx.Graph]):
             sk.add_nodes_from(sj.nodes())
             sk.add_edges_from(si.edges())
             sk.add_edges_from(sj.edges())
-            sk.add_edges_from(common_edges)
+            sk.add_edges_from([common_edge]) # not required but easier to understand merging steps
 
             # Add sk to msq and increment the next available node label
             msq.append(sk)
             i = next_node_label # last element in msq is now part of next merge
             next_node_label += 1
 
-    if not nx.utils.graphs_equal(msq[-1], G):
-        raise ValueError("final graph after last merge does not coincide with initial graph!")
+    # Convert edges to unordered pairs to cover reversed order of edges
+    edges_A = {frozenset(edge) for edge in msq[-1].edges}
+    edges_B = {frozenset(edge) for edge in G.edges}
+    # check if final merged graph contains all nodes of initial graph G 
+    # and all edges of merged graph are contained in G
+    is_subgraph = set(msq[-1].nodes) <= set(G.nodes) and edges_A <= edges_B
+
+    if not is_subgraph:
+        raise ValueError("final graph after last merge is not a subgraph of initial graph!")
     
     return Bt, msq
 
-def parallel_merge(G, msq):
+def parallel_merge(G: nx.Graph, msq: list[nx.Graph]):
     # Create Binary tree graph Bt with nodes labeled 0, 1, ..., len(msq) - 1
     Bt = nx.DiGraph()
     Bt.add_nodes_from(range(len(msq)))
@@ -376,13 +385,15 @@ def parallel_merge(G, msq):
                 common_edges = [e for e in G.edges if set(e).intersection(si.nodes()) and set(e).intersection(sj.nodes())]
 
                 if common_edges:
-                    # Common edge found, print the first common edge
-                    print(f"Common edge found between s{i} and s{j}: {common_edges[0]}")
+                    # Find a common edge to use for the merging
+                    common_edge = random.choice(common_edges) # random choice
+                    # Common edge found
+                    print(f"Common edge found between s{i} and s{j}: {common_edge}")
 
                     # Add a new node to Bt
                     Bt.add_node(next_node_label)
-                    Bt.add_edge(i, next_node_label)
-                    Bt.add_edge(j, next_node_label)
+                    Bt.add_edge(i, next_node_label, weight=common_edge) # add merging edge info
+                    Bt.add_edge(j, next_node_label, weight=common_edge) # add merging edge info
                     print(f"Added new node {next_node_label} to Bt, connecting s{i} and s{j} to it.")
 
                     # Merge si and sj into a new sk
@@ -391,7 +402,7 @@ def parallel_merge(G, msq):
                     sk.add_nodes_from(sj.nodes())
                     sk.add_edges_from(si.edges())
                     sk.add_edges_from(sj.edges())
-                    sk.add_edges_from(common_edges)
+                    sk.add_edges_from([common_edge]) # not required but easier to understand merging steps
 
                     # Add sk to msq and increment the next available node label
                     msq.append(sk)
@@ -404,8 +415,15 @@ def parallel_merge(G, msq):
                     break  # Exit the inner loop once a merge occurs
     
     # draw_graph(Bt)
-    if not nx.utils.graphs_equal(msq[-1], G):
-        raise ValueError("final graph after last merge does not coincide with initial graph!")
+    # Convert edges to unordered pairs to cover reversed order of edges
+    edges_A = {frozenset(edge) for edge in msq[-1].edges}
+    edges_B = {frozenset(edge) for edge in G.edges}
+    # check if final merged graph contains all nodes of initial graph G 
+    # and all edges of merged graph are contained in G
+    is_subgraph = set(msq[-1].nodes) <= set(G.nodes) and edges_A <= edges_B
+
+    if not is_subgraph:
+        raise ValueError("final graph after last merge is not a subgraph of initial graph!")
 
     return Bt, msq
 
@@ -657,12 +675,15 @@ if __name__ == "__main__":
             print(f"    graph {graph_pair_idcs[1]}: nodes={graph_pair[1].nodes}")
 
     # draw the binary tree representing the merge pattern
-    ptrn1.draw_pattern_graph(show=False)
-    ptrn2.draw_pattern_graph(show=True)
+    ptrn1.draw_pattern_graph(show_weights=True, show=False)
+    ptrn2.draw_pattern_graph(show_weights=True, show=False)
 
     # draw all subgraphs 
     #ptrn1.draw_subgraphs(show=False)
     #ptrn2.draw_subgraphs()
+
+    ptrn1.draw_subgraphs(layer=-1, show=False)
+    ptrn2.draw_subgraphs(layer=-1)
 
     
 
