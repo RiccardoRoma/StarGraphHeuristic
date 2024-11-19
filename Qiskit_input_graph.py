@@ -548,16 +548,34 @@ class MergePattern:
         """
         Draw the subgraphs (of a certain layer) using draw_graph function from modify_graph_objects
         """
+        # Default values
+        if kwargs.get("node_color", None) is None:
+            kwargs["node_color"] = "yellow"
+        if kwargs.get("layout", None) is None:
+            kwargs["layout"] = "circular"
+        show_plots_at_end = False
+        if kwargs.get("show", None) is None:
+            show_plots_at_end = True
+            kwargs["show"] = False
         if kwargs.get("fig_size", None) is None:
-            kwargs["fig_size"] = (8,8)
+            kwargs["fig_size"] = (8, 8)
+        if kwargs.get("title", None) is None:
+            kwargs["title"] = "Graph Visualization"
+
 
         if layer is None:
             subgraphs = self._subgraphs
             for i in range(len(subgraphs)):
+                if i == len(subgraphs)-1:
+                    if show_plots_at_end:
+                        kwargs["show"] = True
                 graph = subgraphs[i]
                 mgo.draw_graph(graph, **kwargs)
         elif isinstance(layer, int):
             for i in self._merge_nodes_by_layer[layer]:
+                if i == self._merge_nodes_by_layer[layer][-1]:
+                    if show_plots_at_end:
+                        kwargs["show"] = True
                 graph = self._subgraphs[i]
                 mgo.draw_graph(graph, **kwargs)
         else:
@@ -569,14 +587,19 @@ class MergePattern:
         Draw the binary tree representation of the merging pattern using draw_graph function from modify_graph_objects
         """
         # define default layout for binary tree graph
-        if kwargs.get("fig_size", None) is None:
-            kwargs["fig_size"] = (8,6)
-        if kwargs.get("node_color", None) is None:
-            kwargs["node_color"] = "lightblue"
         if kwargs.get("layout", None) is None:
             kwargs["layout"] = "graphviz_dot"
+        if kwargs.get("node_color", None) is None:
+            kwargs["node_color"] = "lightblue"
+        if kwargs.get("show", None) is None:
+            kwargs["show"] = True
+        if kwargs.get("fig_size", None) is None:
+            kwargs["fig_size"] = (8, 6)
         if kwargs.get("title", None) is None:
             kwargs["title"] = "Binary Tree Representation of merging pattern"
+        if kwargs.get("edge_color", None) is None:
+            kwargs["edge_color"] = "gray"
+
         mgo.draw_graph(self._pattern_graph, **kwargs)
         
 
@@ -599,7 +622,9 @@ if __name__ == "__main__":
     
     bt1,_ = parallel_merge(init_graph,msq1)
     
-    draw_binary_tree(bt1, show=False)
+    #draw_binary_tree(bt1, show=False)
+    # Define MergePattern instance for parallel merge
+    ptrn1 = MergePattern(msq1, bt1)
 
     _,msq2,_= calculate_msq(init_graph, show_status=False)
     # for i in range(len(msq)):   
@@ -607,5 +632,38 @@ if __name__ == "__main__":
     print(f"number of subgraphs is initially {len(msq2)}.")
     
     bt2,_ = sequential_merge(init_graph,msq2)
+
+    #draw_binary_tree(bt2, show=True)
+    # Define MergePattern instance for sequential merge
+    ptrn2 = MergePattern(msq2, bt2)
+
+    # print all merging pairs
+    print("merge pairs for parallel merge:")
+    for layer in range(len(ptrn1)):
+        curr_pairs_graph = ptrn1.get_merge_pairs(layer)
+        curr_pairs = ptrn1._merge_siblings_by_layer[layer]
+        print(f"layer {layer}: merge pairs {curr_pairs}")
+        for graph_pair_idcs, graph_pair in zip(curr_pairs,curr_pairs_graph):
+            print(f"    graph {graph_pair_idcs[0]}: nodes={graph_pair[0].nodes}")
+            print(f"    graph {graph_pair_idcs[1]}: nodes={graph_pair[1].nodes}")
+    print()
+    print("merge pairs for sequential merge:")
+    for layer in range(len(ptrn2)):
+        curr_pairs_graph = ptrn2.get_merge_pairs(layer)
+        curr_pairs = ptrn2._merge_siblings_by_layer[layer]
+        print(f"layer {layer}: merge pairs {curr_pairs}")
+        for graph_pair_idcs, graph_pair in zip(curr_pairs,curr_pairs_graph):
+            print(f"    graph {graph_pair_idcs[0]}: nodes={graph_pair[0].nodes}")
+            print(f"    graph {graph_pair_idcs[1]}: nodes={graph_pair[1].nodes}")
+
+    # draw the binary tree representing the merge pattern
+    ptrn1.draw_pattern_graph(show=False)
+    ptrn2.draw_pattern_graph(show=True)
+
+    # draw all subgraphs 
+    #ptrn1.draw_subgraphs(show=False)
+    #ptrn2.draw_subgraphs()
+
     
-    draw_binary_tree(bt2, show=True)
+
+
