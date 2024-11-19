@@ -473,8 +473,10 @@ def get_nodes_by_layers(tree: nx.DiGraph) -> list[list[int]]:
 
 class MergePattern:
     def __init__(self,
+                 init_graph: nx.Graph,
                  msq: list[nx.Graph],
                  bt: nx.DiGraph):
+        self._initial_graph = init_graph
         self._subgraphs = msq
         self._pattern_graph = bt
         #self._construct_subgraphs_of_layers(msq, bt)
@@ -483,6 +485,23 @@ class MergePattern:
         self._merge_nodes_by_layer.reverse()
         self._construct_siblings_by_layer()
 
+    @classmethod
+    def from_graph_sequential(cls, init_graph: nx.Graph):
+        _,msq,_ = calculate_msq(init_graph, show_status=False)
+        bt,_ = sequential_merge(init_graph,msq)
+        return cls(init_graph, msq, bt)
+    
+    @classmethod
+    def from_graph_parallel(cls, init_graph: nx.Graph):
+        _,msq,_ = calculate_msq(init_graph, show_status=False)
+        bt,_ = parallel_merge(init_graph,msq)
+        return cls(init_graph, msq, bt)
+
+
+
+    @property
+    def initial_graph(self):
+        return self._initial_graph
     @property
     def pattern_graph(self):
         return self._pattern_graph
