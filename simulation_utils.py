@@ -18,7 +18,8 @@ from qiskit_ibm_runtime.fake_provider import FakeProviderForBackendV2, FakeManil
 from qiskit_ibm_runtime import QiskitRuntimeService
 from qiskit_aer.primitives import Estimator as AerEstimator
 from qiskit_aer import AerSimulator
-from qiskit_aer.noise import NoiseModel
+from qiskit_aer.noise import NoiseModel, QuantumError
+from qiskit_aer.noise.device import basic_device_gate_errors, basic_device_readout_errors
 
 from qiskit.transpiler import PassManager, StagedPassManager, CouplingMap
 from qiskit.transpiler.passes import RemoveBarriers
@@ -720,6 +721,56 @@ def load_ibm_credentials(premium_access: bool = False) -> QiskitRuntimeService:
     
     service = QiskitRuntimeService(channel="ibm_quantum", token=ibmq_api_token, instance=f"{ibmq_hub}/{ibmq_group}/{ibmq_project}")
     return service
+
+def get_simple_noise_model_from_backend(service: QiskitRuntimeService,
+                                        backend_str: str, 
+                                        consider_2qubit_gate_error: bool = True,
+                                        consider_readout_error: bool = True) -> NoiseModel:
+    """
+    This function simplifies the backend noise model which is derived from given backend_str.
+    The simplified noise model considers only the two-qubit gate error and/or the qubit readout error.
+    """
+    backend_opt = {"backend_str": backend_str,
+                   "noise_model_id": 0,
+                   "fname_noise_model": "",
+                   "noise_model_str": "",
+                   "coupling_map_id": 0,
+                   "fname_coupling_map": "",
+                   "coupling_map_str": "",
+                   "native_basis_gates_str": "",
+                   "run_locally": False}
+    
+    device_backend = get_backend(service, backend_opt)
+    noise_model = NoiseModel(basis_gates=device_backend.operation_names)
+
+    if consider_2qubit_gate_error:
+        gate_errs = basic_device_gate_errors(target=device_backend.target)
+    
+        # check available two-qubit gate
+        if "cx" in device_backend.operation_names:
+            two_qubit_gate_str = "cx"
+        elif "ecr" in device_backend.operation_names:
+            two_qubit_gate_str = "ecr"
+        else:
+            raise ValueError("Cannot find two qubit gate in backend operations!")
+    
+        two_qubit_gate_errs = []
+        for et in gate_errs:
+            if et[0] == two_qubit_gate_str:
+                two_qubit_gate_errs.append(et)
+        
+        for et in two_qubit_gate_errs:
+            noise_model.add_quantum_error(et[2], et[0], et[1])
+
+    if consider_readout_error:
+        read_errs = basic_device_readout_errors(target=device_backend.target)
+
+        for et in read_errs:
+            noise_model.add_readout_error(et[1], et[0])
+
+    return noise_model
+    
+
 
 def get_backend(service: QiskitRuntimeService,
                 backend_opt: dict) -> BackendV2:
