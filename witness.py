@@ -59,6 +59,8 @@ def fidelity_est_simple(n_qbs:int, ob_qbs: list[int]) -> SparsePauliOp:
     s = ['I'] * n_qbs
     for q in ob_qbs:
         s[q] = 'X'
+    # reverse list due to reversed qubit order in qiskit
+    s.reverse()
     list_obs.append((''.join(s), 0.5))
     G_o = SparsePauliOp.from_list(list_obs)
 
@@ -71,6 +73,8 @@ def fidelity_est_simple(n_qbs:int, ob_qbs: list[int]) -> SparsePauliOp:
         q2 = ob_qbs[i+1]
         s[q1] = 'Z'
         s[q2] = 'Z'
+        # reverse list due to reversed qubit order in qiskit
+        s.reverse()
         list_obs.append((''.join(s), 0.5))
         curr_G_e = SparsePauliOp.from_list(list_obs)
         even_list.append(curr_G_e)
@@ -96,6 +100,8 @@ def fidelity_full(n_qbs:int, ob_qbs: list[int]) -> SparsePauliOp:
     s = ['I'] * n_qbs
     for q in ob_qbs:
         s[q] = 'X'
+    # reverse list due to reversed qubit order in qiskit
+    s.reverse()
     list_obs.append((''.join(s), 0.5))
     G_o = SparsePauliOp.from_list(list_obs)
 
@@ -108,6 +114,8 @@ def fidelity_full(n_qbs:int, ob_qbs: list[int]) -> SparsePauliOp:
         q2 = ob_qbs[i+1]
         s[q1] = 'Z'
         s[q2] = 'Z'
+        # reverse list due to reversed qubit order in qiskit
+        s.reverse()
         list_obs.append((''.join(s), 0.5))
         curr_G_e = SparsePauliOp.from_list(list_obs)
         even_list.append(curr_G_e)

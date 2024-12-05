@@ -18,7 +18,8 @@ from qiskit_ibm_runtime.fake_provider import FakeProviderForBackendV2, FakeManil
 from qiskit_ibm_runtime import QiskitRuntimeService
 from qiskit_aer.primitives import Estimator as AerEstimator
 from qiskit_aer import AerSimulator
-from qiskit_aer.noise import NoiseModel
+from qiskit_aer.noise import NoiseModel, QuantumError
+from qiskit_aer.noise.device import basic_device_gate_errors, basic_device_readout_errors
 
 from qiskit.transpiler import PassManager, StagedPassManager, CouplingMap
 from qiskit.transpiler.passes import RemoveBarriers
@@ -721,8 +722,59 @@ def load_ibm_credentials(premium_access: bool = False) -> QiskitRuntimeService:
     service = QiskitRuntimeService(channel="ibm_quantum", token=ibmq_api_token, instance=f"{ibmq_hub}/{ibmq_group}/{ibmq_project}")
     return service
 
+def get_simple_noise_model_from_backend(service: QiskitRuntimeService,
+                                        backend_str: str, 
+                                        consider_2qubit_gate_error: bool = True,
+                                        consider_readout_error: bool = True) -> NoiseModel:
+    """
+    This function simplifies the backend noise model which is derived from given backend_str.
+    The simplified noise model considers only the two-qubit gate error and/or the qubit readout error.
+    """
+    backend_opt = {"backend_str": backend_str,
+                   "noise_model_id": 0,
+                   "fname_noise_model": "",
+                   "noise_model_str": "",
+                   "coupling_map_id": 0,
+                   "fname_coupling_map": "",
+                   "coupling_map_str": "",
+                   "native_basis_gates_str": "",
+                   "run_locally": False}
+    
+    device_backend = get_backend(service, backend_opt, print_status=False)
+    noise_model = NoiseModel(basis_gates=device_backend.operation_names)
+
+    if consider_2qubit_gate_error:
+        gate_errs = basic_device_gate_errors(target=device_backend.target)
+    
+        # check available two-qubit gate
+        if "cx" in device_backend.operation_names:
+            two_qubit_gate_str = "cx"
+        elif "ecr" in device_backend.operation_names:
+            two_qubit_gate_str = "ecr"
+        else:
+            raise ValueError("Cannot find two qubit gate in backend operations!")
+    
+        two_qubit_gate_errs = []
+        for et in gate_errs:
+            if et[0] == two_qubit_gate_str:
+                two_qubit_gate_errs.append(et)
+        
+        for et in two_qubit_gate_errs:
+            noise_model.add_quantum_error(et[2], et[0], et[1])
+
+    if consider_readout_error:
+        read_errs = basic_device_readout_errors(target=device_backend.target)
+
+        for et in read_errs:
+            noise_model.add_readout_error(et[1], et[0])
+
+    return noise_model
+    
+
+
 def get_backend(service: QiskitRuntimeService,
-                backend_opt: dict) -> BackendV2:
+                backend_opt: dict,
+                print_status: bool = True) -> BackendV2:
     backend_str = backend_opt['backend_str']
 
     noise_model_id = backend_opt['noise_model_id']
@@ -736,7 +788,8 @@ def get_backend(service: QiskitRuntimeService,
     native_basis_gates_str = backend_opt['native_basis_gates_str']
     # setup backend
     if backend_str == "aer_simulator":
-        print("Start simulation runs with local Aer simulator...")
+        if print_status:
+            print("Start simulation runs with local Aer simulator...")
         # load possible noise_model, coupling map and basis gate set
         if noise_model_id == -1:
     
@@ -745,7 +798,8 @@ def get_backend(service: QiskitRuntimeService,
             if os.path.isfile(fname_noise_model):
                 with open(fname_noise_model, "rb") as f:
                     noise_model = pickle.load(f)
-                print("Loaded noise model from file!")
+                if print_status:
+                    print("Loaded noise model from file!")
             else:
                 raise ValueError("pickle file to read noise model does not exist!")
             if noise_model_str == "":
@@ -753,14 +807,31 @@ def get_backend(service: QiskitRuntimeService,
         elif noise_model_id==0:
             noise_model_str = "None"
             noise_model = None
-            print("No noise model is used!")
+            if print_status:
+                print("No noise model is used!")
         elif noise_model_id==1:
             if "fake" in noise_model_str:
                 device_backend = FakeProviderForBackendV2().backend(noise_model_str)
             else:
                 device_backend = service.backend(noise_model_str)
             noise_model = NoiseModel.from_backend(device_backend)
-            print("Loaded noise model from backend {}!".format(noise_model_str))
+            if print_status:
+                print("Loaded noise model from backend {}!".format(noise_model_str))
+        elif noise_model_id==2:
+            # load simplified noise model from backend noise_model_str, considering only two-qubit gate errors
+            noise_model = get_simple_noise_model_from_backend(service, noise_model_str, consider_2qubit_gate_error=True, consider_readout_error=False)
+            if print_status:
+                print("Loaded simplified noise model from backend {}, considering only two-qubit gate errors!".format(noise_model_str))
+        elif noise_model_id==3:
+            # load simplified noise model from backend noise_model_str, considering only readout errors
+            noise_model = get_simple_noise_model_from_backend(service, noise_model_str, consider_2qubit_gate_error=False, consider_readout_error=True)
+            if print_status:
+                print("Loaded simplified noise model from backend {}, considering only readout errors!".format(noise_model_str))
+        elif noise_model_id==4:
+            # load simplified noise model from backend noise_model_str, considering only two-qubit gate errors and readout errors
+            noise_model = get_simple_noise_model_from_backend(service, noise_model_str, consider_2qubit_gate_error=True, consider_readout_error=True)
+            if print_status:
+                print("Loaded simplified noise model from backend {}, considering only two-qubit gate errors and readout errors!".format(noise_model_str))
         else:
             raise ValueError("noise model id {} is currently not supported.".format(noise_model_id))
         
@@ -780,7 +851,8 @@ def get_backend(service: QiskitRuntimeService,
                     coupling_map = CouplingMap(cm_object)
                 else:
                     raise ValueError("Unkown type for coupling map from pickle file.")
-                print("Loaded coupling map from file!")
+                if print_status:
+                    print("Loaded coupling map from file!")
             else:
                 raise ValueError("pickle file to read coupling map does not exist!")
         
@@ -789,14 +861,36 @@ def get_backend(service: QiskitRuntimeService,
         elif coupling_map_id==0:
             coupling_map_str = "None"
             coupling_map = None
-            print("No coupling map is used!")
+            if print_status:
+                print("No coupling map is used!")
         elif coupling_map_id==1:
             if "fake" in coupling_map_str:
                 device_backend = FakeProviderForBackendV2().backend(coupling_map_str)
             else:
                 device_backend = service.backend(coupling_map_str)
-            coupling_map = device_backend.coupling_map
-            print("Loaded coupling map from backend {}!".format(coupling_map_str))
+
+            if device_backend.coupling_map:
+                # load coupling map from backend if not None
+                coupling_map = device_backend.coupling_map
+            else:
+                # load coupling map from target
+                if device_backend.target.build_coupling_map():
+                    coupling_map = device_backend.target.build_coupling_map()
+                else:
+                    # check available two-qubit gate
+                    if "cx" in device_backend.operation_names:
+                        two_qubit_gate_str = "cx"
+                    elif "ecr" in device_backend.operation_names:
+                        two_qubit_gate_str = "ecr"
+                    else:
+                        raise ValueError("Cannot find two qubit gate in backend operations!")
+                    if device_backend.target.build_coupling_map(two_q_gate=two_qubit_gate_str):
+                        coupling_map = device_backend.target.build_coupling_map(two_q_gate=two_qubit_gate_str)
+                    else:
+                        raise ValueError("Unable to load a valid coupling map from backend {}.".format(coupling_map_str))
+                    
+            if print_status:
+                print("Loaded coupling map from backend {}!".format(coupling_map_str))
         else:
             raise ValueError("coupling map id {} is currently not supported.".format(coupling_map_id))
         
@@ -806,15 +900,18 @@ def get_backend(service: QiskitRuntimeService,
             else:
                 device_backend = service.backend(native_basis_gates_str)
             native_basis_gates = NoiseModel.from_backend(device_backend).basis_gates
-            print("Loaded basis gate set from backend {}!".format(native_basis_gates_str))
+            if print_status:
+                print("Loaded basis gate set from backend {}!".format(native_basis_gates_str))
         else:
             if noise_model is None:
                 native_basis_gates = None
-                print("No basis gate set is used!")
+                if print_status:
+                    print("No basis gate set is used!")
             else:
                 native_basis_gates = noise_model.basis_gates
-                print("Loaded basis gate set from noise model!")
-        
+                if print_status:
+                    print("Loaded basis gate set from noise model!")
+
         # limit number of qubits to coupling map
         if coupling_map is not None:
             num_qubits = len(coupling_map.physical_qubits)
@@ -832,8 +929,9 @@ def get_backend(service: QiskitRuntimeService,
     
         try:
             backend = FakeProviderForBackendV2().backend(name=backend_str)
-            print("Start simulation runs with fake ibm backend simulator...")
-            print("Load noise model, coupling map and basis gate set from fake backend {}!".format(backend_str))
+            if print_status:
+                print("Start simulation runs with fake ibm backend simulator...")
+                print("Load noise model, coupling map and basis gate set from fake backend {}!".format(backend_str))
         except Exception as exc:
                 print(f"Loading of fake ibm runtime backend {backend_str} failed! Backend is not found with FakeProviderForBackendV2.")
                 print("Exception message:")
@@ -850,12 +948,14 @@ def get_backend(service: QiskitRuntimeService,
         if backend_opt["run_locally"]:
             # simulate hardware backend with aer simulator locally
             backend = AerSimulator.from_backend(service.backend(backend_str))
-            print("Start simulation runs with real ibm backend in local testing mode with Aer simulator...")
-            print("Load noise model, coupling map and basis gate set from real backend {}!".format(backend_str))
+            if print_status:
+                print("Start simulation runs with real ibm backend in local testing mode with Aer simulator...")
+                print("Load noise model, coupling map and basis gate set from real backend {}!".format(backend_str))
         else:
             # run on actual hardware
             backend = service.backend(backend_str)
-            print("Start simulation runs on real ibm backend {} (hardware run)...".format(backend_str))
+            if print_status:
+                print("Start simulation runs on real ibm backend {} (hardware run)...".format(backend_str))
     return backend
     
 # (transpile circuits?)
