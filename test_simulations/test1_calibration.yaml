@@ -2,6 +2,7 @@ result_dir: /Users/as56ohop/Documents/NAS_sync/PhD/code/ghz_state_generation_in_
 backend_str: aer_simulator
 use_premium_access: false
 run_locally: true
+generate_star_states: false
 fidelity_witness: simple
 subgraph_size: null
 coupling_map_str: "random_graph"
