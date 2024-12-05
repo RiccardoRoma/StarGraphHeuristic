@@ -85,6 +85,7 @@ else:
 
 
 use_premium_access = cal_dict["use_premium_access"]
+generate_star_states = cal_dict["generate_star_states"] # flag for ghz generation (False) or star graphs (True)
 fidelity_witness = cal_dict["fidelity_witness"]
 backend_str = cal_dict["backend_str"]
 noise_model_id = cal_dict["noise_model_id"]
@@ -149,11 +150,8 @@ pm_cal.initial_layout = init_layout
 # create pass manager from calibration
 pass_manager = utils.get_passmanager(backend, pm_cal)
 
-# flag for ghz generation (False) or star graphs (True)
-star = True
-
 # create the circuit to generate GHZ state
-curr_circ, curr_init_graph, curr_star_graph = cgsc.create_ghz_state_circuit_graph(graph, backend.num_qubits, star=star)
+curr_circ, curr_init_graph, curr_star_graph = cgsc.create_ghz_state_circuit_graph(graph, backend.num_qubits, star=generate_star_states)
 #curr_circ, curr_init_graph = cgsc.create_ghz_state_circuit_debug(graph, backend.num_qubits)
 
 # draw graph and save the plot
