@@ -150,7 +150,7 @@ pm_cal.initial_layout = init_layout
 pass_manager = utils.get_passmanager(backend, pm_cal)
 
 # flag for ghz generation (False) or star graphs (True)
-star = False
+star = True
 
 # create the circuit to generate GHZ state
 curr_circ, curr_init_graph, curr_star_graph = cgsc.create_ghz_state_circuit_graph(graph, backend.num_qubits, star=star)
