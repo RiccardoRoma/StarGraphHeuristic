@@ -114,6 +114,10 @@ def create_ghz_state_circuit_graph(graph_orig: Graph,
         
         if star:
             circ_shift_merge, subgraph1 = shift_center.shift_centers(circ_shift_merge, subgraph1, curr_center1, new_center1) # call shifting function
+        else:
+            # For GHZ states only centers in nx.Graph's have to be shifted, to merge at the right edges.
+            subgraph1 = mgo.update_graph_center(subgraph1, new_center1)
+            
 
         subgraph2 = subgraphs[i] # second graph that should be merged with first graph
 
@@ -132,9 +136,16 @@ def create_ghz_state_circuit_graph(graph_orig: Graph,
         
         if star:
             circ_shift_merge, subgraph2 = shift_center.shift_centers(circ_shift_merge, subgraph2, curr_center2, new_center2) # call shifting function
+        else:
+            # For GHZ states only centers in nx.Graph's have to be shifted, to merge at the right edges.
+            subgraph2 = mgo.update_graph_center(subgraph2, new_center2)
+        
 
         # ... call merging for subgraph1 and subgraph2
-        circ_shift_merge, subgraph1, cls_bit_cnt = merge_graphs.merge_graphs(circ_shift_merge, new_center1, subgraph1, new_center2, subgraph2, cls_bit_cnt)
+        if star:
+            circ_shift_merge, subgraph1, cls_bit_cnt = merge_graphs.merge_graphs(circ_shift_merge, new_center1, subgraph1, new_center2, subgraph2, cls_bit_cnt)
+        else:
+            circ_shift_merge, subgraph1, cls_bit_cnt = merge_graphs.merge_ghz(circ_shift_merge, new_center1, subgraph1, new_center2, subgraph2, cls_bit_cnt)
 
         circ_shift_merge.barrier()
         
