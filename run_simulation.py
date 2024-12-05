@@ -113,8 +113,12 @@ service = utils.load_ibm_credentials(premium_access=use_premium_access)
 # load backend from passmanager calibration
 backend = utils.get_backend(service, backend_opt)
 
+# get noise model from backend
+noise_model = backend.options.get("noise_model", None)
+if noise_model is None:
+    noise_model = NoiseModel.from_backend(backend)
+
 # save noise model if not already done
-noise_model = NoiseModel.from_backend(backend)
 if noise_model:
     if not noise_model.is_ideal():
         if not os.path.isfile(fname_noise_model):
@@ -175,6 +179,8 @@ est_result = job.result()
 # extract value from 0-d numpy array
 fidelity = float(est_result[0].data.evs)
 fidelity_std = est_result[0].data.stds
+
+print("created {} qubit GHZ state with fidelity {} +/- {}!".format(len(graph), fidelity, fidelity_std))
 
 # save the result and all calibration data, graph, transpiled circuit, etc. in the result dir
 # save to csv file
