@@ -54,7 +54,11 @@ def generate_layout_graph(
     else:
         edges_list = list(backend.coupling_map.get_edges())
 
-    noise_model = NoiseModel.from_backend(backend)
+    #noise_model = NoiseModel.from_backend(backend)
+    # get noise model from backend
+    noise_model = backend.options.get("noise_model", None)
+    if noise_model is None:
+        noise_model = NoiseModel.from_backend(backend)
     # generate graph object from nodes list and edges list
     # Init a graph G object
     G = Graph()
@@ -74,10 +78,12 @@ def generate_layout_graph(
         else:
             if noise_model.is_ideal():
                 meas_err = 0.0
-            elif i in noise_model.noise_qubits:
-                meas_err = noise_model._local_readout_errors[(i,)].probabilities[0, 1]
             else:
-                meas_err = 0.0
+                readout_err = noise_model._local_readout_errors.get((i,), None)
+                if readout_err:
+                    meas_err = readout_err.probabilities[0, 1]
+                else:
+                    meas_err = 0.0
 
         # check if above threshold
         if meas_err > meas_err_thrs:
@@ -117,20 +123,14 @@ def generate_layout_graph(
             if noise_model.is_ideal():
                 two_q_gate_err = 0.0
             elif two_qubit_gate_str in noise_model.noise_instructions:
-                err_dict_target = backend.target[two_qubit_gate_str]
-                if et1 in err_dict_target.keys():
-                    two_q_gate_err = err_dict_target[et1].error
-                elif et2 in err_dict_target.keys():
-                    two_q_gate_err = err_dict_target[et2].error
+                two_q_quantum_err = noise_model._local_quantum_errors[two_qubit_gate_str].get(et1, None)
+                if two_q_quantum_err is None:
+                    two_q_quantum_err = noise_model._local_quantum_errors[two_qubit_gate_str].get(et2, None)
+
+                if two_q_quantum_err:
+                    two_q_gate_err = 1.0 - max(two_q_quantum_err.probabilities)
                 else:
-                    raise KeyError(
-                        "Edge tuple {},{} from layout graph not in backend target operation {} keys {}".format(
-                            i,
-                            j,
-                            two_qubit_gate_str,
-                            backend.target[two_qubit_gate_str].keys(),
-                        )
-                    )
+                    two_q_gate_err = 0.0
             else:
                 two_q_gate_err = 0.0
         # check if above threshold
