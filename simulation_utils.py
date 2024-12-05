@@ -817,6 +817,21 @@ def get_backend(service: QiskitRuntimeService,
             noise_model = NoiseModel.from_backend(device_backend)
             if print_status:
                 print("Loaded noise model from backend {}!".format(noise_model_str))
+        elif noise_model_id==2:
+            # load simplified noise model from backend noise_model_str, considering only two-qubit gate errors
+            noise_model = get_simple_noise_model_from_backend(service, noise_model_str, consider_2qubit_gate_error=True, consider_readout_error=False)
+            if print_status:
+                print("Loaded simplified noise model from backend {}, considering only two-qubit gate errors!".format(noise_model_str))
+        elif noise_model_id==3:
+            # load simplified noise model from backend noise_model_str, considering only readout errors
+            noise_model = get_simple_noise_model_from_backend(service, noise_model_str, consider_2qubit_gate_error=False, consider_readout_error=True)
+            if print_status:
+                print("Loaded simplified noise model from backend {}, considering only readout errors!".format(noise_model_str))
+        elif noise_model_id==4:
+            # load simplified noise model from backend noise_model_str, considering only two-qubit gate errors and readout errors
+            noise_model = get_simple_noise_model_from_backend(service, noise_model_str, consider_2qubit_gate_error=True, consider_readout_error=True)
+            if print_status:
+                print("Loaded simplified noise model from backend {}, considering only two-qubit gate errors and readout errors!".format(noise_model_str))
         else:
             raise ValueError("noise model id {} is currently not supported.".format(noise_model_id))
         
@@ -853,7 +868,27 @@ def get_backend(service: QiskitRuntimeService,
                 device_backend = FakeProviderForBackendV2().backend(coupling_map_str)
             else:
                 device_backend = service.backend(coupling_map_str)
-            coupling_map = device_backend.coupling_map
+
+            if device_backend.coupling_map:
+                # load coupling map from backend if not None
+                coupling_map = device_backend.coupling_map
+            else:
+                # load coupling map from target
+                if device_backend.target.build_coupling_map():
+                    coupling_map = device_backend.target.build_coupling_map()
+                else:
+                    # check available two-qubit gate
+                    if "cx" in device_backend.operation_names:
+                        two_qubit_gate_str = "cx"
+                    elif "ecr" in device_backend.operation_names:
+                        two_qubit_gate_str = "ecr"
+                    else:
+                        raise ValueError("Cannot find two qubit gate in backend operations!")
+                    if device_backend.target.build_coupling_map(two_q_gate=two_qubit_gate_str):
+                        coupling_map = device_backend.target.build_coupling_map(two_q_gate=two_qubit_gate_str)
+                    else:
+                        raise ValueError("Unable to load a valid coupling map from backend {}.".format(coupling_map_str))
+                    
             if print_status:
                 print("Loaded coupling map from backend {}!".format(coupling_map_str))
         else:
@@ -876,7 +911,7 @@ def get_backend(service: QiskitRuntimeService,
                 native_basis_gates = noise_model.basis_gates
                 if print_status:
                     print("Loaded basis gate set from noise model!")
-        
+
         # limit number of qubits to coupling map
         if coupling_map is not None:
             num_qubits = len(coupling_map.physical_qubits)
