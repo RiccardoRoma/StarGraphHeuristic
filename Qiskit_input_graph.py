@@ -568,15 +568,21 @@ class MergePattern:
         
         self._merge_siblings_by_layer = sibling_layers
 
-    def get_merge_pairs(self, layer: int) -> list[tuple[nx.Graph, nx.Graph]]:
+    def get_merge_pairs(self, layer: int) -> list[tuple[nx.Graph, nx.Graph, tuple[int, int]]]:
         """
-        Returns a list of tuples containing the graphs that should be merged in the layer index
+        Returns a list of tuples containing the graphs that should be merged in the layer index and the merging edge
         """
         merge_pairs = []
         # list of all subgraphs
         subgraphs = self._subgraphs
         for idx1, idx2 in self._merge_siblings_by_layer[layer]:
-            merge_pairs.append((subgraphs[idx1], subgraphs[idx2]))
+            parent_idx = next(self._pattern_graph.successors(idx1))
+            idx_pair = (idx1, parent_idx) # successor implies that edge is of this form
+            
+            merging_edge = self._pattern_graph[idx1][parent_idx].get("weight", None)
+            if not merging_edge:
+                raise ValueError("Unable to retrieve merging edge at pattern graph indices ({}, {})!".format(idx1, parent_idx))
+            merge_pairs.append((subgraphs[idx1], subgraphs[idx2], merging_edge))
         return merge_pairs
     
     def draw_subgraphs(self, 
@@ -683,6 +689,7 @@ if __name__ == "__main__":
         for graph_pair_idcs, graph_pair in zip(curr_pairs,curr_pairs_graph):
             print(f"    graph {graph_pair_idcs[0]}: nodes={graph_pair[0].nodes}")
             print(f"    graph {graph_pair_idcs[1]}: nodes={graph_pair[1].nodes}")
+            print(f"    merging edge {graph_pair[2]}")
     print()
     print("merge pairs for sequential merge:")
     for layer in range(len(ptrn2)):
@@ -692,6 +699,7 @@ if __name__ == "__main__":
         for graph_pair_idcs, graph_pair in zip(curr_pairs,curr_pairs_graph):
             print(f"    graph {graph_pair_idcs[0]}: nodes={graph_pair[0].nodes}")
             print(f"    graph {graph_pair_idcs[1]}: nodes={graph_pair[1].nodes}")
+            print(f"    merging edge {graph_pair[2]}")
 
     # draw the binary tree representing the merge pattern
     ptrn1.draw_pattern_graph(show_weights=True, show=False)
