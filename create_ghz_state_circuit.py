@@ -6,7 +6,7 @@ import pickle
 import shift_center
 import generate_star_states
 import merge_graphs
-from Qiskit_input_graph import draw_graph, calculate_msq
+from Qiskit_input_graph import MergePattern, draw_graph, calculate_msq
 import networkx as nx
 from networkx import Graph
 import modify_graph_objects as mgo
@@ -135,6 +135,67 @@ def create_ghz_state_circuit_graph(graph_orig: Graph,
 
     # ToDo: convert star state into GHZ
     circ = convert_star_to_ghz(circ, subgraph1)
+
+    return circ, init_graph, subgraph1
+
+def create_ghz_state_circuit_graph_pattern(pattern: MergePattern,
+                                           total_num_qubits: int,
+                                           star: bool = False) -> Tuple[QuantumCircuit, Graph]:
+    # consistency check
+    if max(list(pattern.initial_graph)) > total_num_qubits:
+        raise ValueError("Node indices of input graph exceed total number of qubits in circuit!")
+    
+    init_graph = pattern.initial_graph
+
+    circ_shift_merge = QuantumCircuit(total_num_qubits)
+
+    for layer in range(len(pattern)):
+        for graph_pair in pattern.get_merge_pairs(layer):
+            subgraph1 = graph_pair[0]
+            subgraph2 = graph_pair[1]
+            new_center_tuple = graph_pair[2] # merging edge
+            # generate states corresponding to subgraphs
+            if star:
+                circ_shift_merge = generate_star_states.generate_star_state(subgraph1, circ_shift_merge)
+                circ_shift_merge = generate_star_states.generate_star_state(subgraph2, circ_shift_merge)
+            else:
+                circ_shift_merge = generate_star_states.generate_ghz_state(subgraph1, circ_shift_merge)
+                circ_shift_merge = generate_star_states.generate_ghz_state(subgraph2, circ_shift_merge)
+
+            curr_center1 = mgo.get_graph_center(subgraph1) # determine current center
+            curr_center2 = mgo.get_graph_center(subgraph2) # determine current center
+            # merging edges list tuples are not ordered after (graph1, graph2) but (smaller value, higher value). Consider this here
+            if new_center_tuple[0] in subgraph1.nodes:
+                new_center1 = new_center_tuple[0]
+            elif new_center_tuple[1] in subgraph1.nodes:
+                new_center1 = new_center_tuple[1]
+            else:
+                raise ValueError("new centers {} don't contain a node of subgraph 1 {}".format(new_center_tuple, subgraph1.nodes))
+            if new_center_tuple[0] in subgraph2.nodes:
+                new_center2 = new_center_tuple[0]
+            elif new_center_tuple[1] in subgraph2.nodes:
+                new_center2 = new_center_tuple[1]
+            else:
+                raise ValueError("new centers {} don't contain a node of subgraph 2 {}".format(new_center_tuple, subgraph2.nodes))
+            
+            # shift star graph centers
+            if star:
+                circ_shift_merge, subgraph1 = shift_center.shift_centers(circ_shift_merge, subgraph1, curr_center1, new_center1) # call shifting function
+                circ_shift_merge, subgraph2 = shift_center.shift_centers(circ_shift_merge, subgraph2, curr_center2, new_center2) # call shifting function
+            else:
+                # For GHZ states only centers in nx.Graph's have to be shifted, to merge at the right edges.
+                subgraph1 = mgo.update_graph_center(subgraph1, new_center1)
+                subgraph2 = mgo.update_graph_center(subgraph2, new_center2)
+            
+            # merging of subgraph1 and subgraph2
+            if star:
+                circ_shift_merge, subgraph1, cls_bit_cnt = merge_graphs.merge_graphs(circ_shift_merge, new_center1, subgraph1, new_center2, subgraph2, cls_bit_cnt)
+            else:
+                circ_shift_merge, subgraph1, cls_bit_cnt = merge_graphs.merge_ghz(circ_shift_merge, new_center1, subgraph1, new_center2, subgraph2, cls_bit_cnt)
+    
+            circ_shift_merge.barrier()
+    if star:
+        circ = convert_star_to_ghz(circ, subgraph1)
 
     return circ, init_graph, subgraph1
 
