@@ -39,4 +39,17 @@ def generate_star_state(G: Graph, circ: QuantumCircuit) -> QuantumCircuit:
 
     return circ
 
+
+def generate_ghz_state(G: Graph, circ: QuantumCircuit) -> QuantumCircuit:
+
+    center_index = mgo.get_graph_center(G)
+    if len(G) > 1:
+        # generate GHZ state if more than one qubit are in current graph
+        circ.h(center_index)
+    
+        for q in G.nodes():
+            circ.cx(center_index, q) if q != center_index else None
+
+    return circ
+
     

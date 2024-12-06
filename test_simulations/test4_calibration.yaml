@@ -1,17 +1,17 @@
-result_dir: /Users/as56ohop/Documents/NAS_sync/PhD/code/ghz_state_generation_in_com_networks/ghz_generation_heuristic_alg/simulation_results
+result_dir: /Users/as56ohop/Documents/NAS_sync/PhD/code/ghz_state_generation_in_com_networks/ghz_generation_heuristic_alg/simulation_results/runtests/
 backend_str: aer_simulator
 use_premium_access: false
 run_locally: true
 generate_star_states: false
 fidelity_witness: simple
-subgraph_size: 10
-coupling_map_str: "ibm_brisbane"
+subgraph_size: null
+coupling_map_str: "fake_fractional"
 coupling_map_id: 1
-fname_coupling_map: "ibm_brisbane_cm.pickle"
-fname_noise_model: "ibm_brisbane_nm.pickle"
-native_basis_gates_str: "ibm_brisbane"
+fname_coupling_map: "fake_fractional_cm.pickle"
+fname_noise_model: "fake_fractional_nm.pickle"
+native_basis_gates_str: "fake_fractional"
 noise_model_id: 1
-noise_model_str: "ibm_brisbane"
+noise_model_str: "fake_fractional"
 estimator_calibration:
   default_shots: 4096
   environment_options:
