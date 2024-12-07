@@ -1,6 +1,6 @@
 import numpy as np
 import pickle
-from Qiskit_input_graph import draw_graph, calculate_msq
+from Qiskit_input_graph import MergePattern, draw_graph, calculate_msq
 import modify_graph_objects as mgo
 from witness import witness_fancy, witness_plain, fidelity_est_simple, fidelity_full
 import networkx as nx
@@ -86,6 +86,7 @@ else:
 
 use_premium_access = cal_dict["use_premium_access"]
 generate_star_states = cal_dict["generate_star_states"] # flag for ghz generation (False) or star graphs (True)
+parallel_merge = cal_dict["parallel_merge"] # flag for using parallel merging
 fidelity_witness = cal_dict["fidelity_witness"]
 backend_str = cal_dict["backend_str"]
 noise_model_id = cal_dict["noise_model_id"]
@@ -151,13 +152,19 @@ pm_cal.initial_layout = init_layout
 pass_manager = utils.get_passmanager(backend, pm_cal)
 
 # create the circuit to generate GHZ state
-curr_circ, curr_init_graph, curr_star_graph = cgsc.create_ghz_state_circuit_graph(graph, backend.num_qubits, star=generate_star_states)
+#curr_circ, curr_init_graph, curr_star_graph = cgsc.create_ghz_state_circuit_graph(graph, backend.num_qubits, star=generate_star_states)
+if parallel_merge:
+    merge_pattern = MergePattern.from_graph_parallel(graph)
+else:
+    merge_pattern = MergePattern.from_graph_sequential(graph)
+
+curr_circ, curr_init_graph, curr_star_graph = cgsc.create_ghz_state_circuit_graph_pattern(merge_pattern, backend.num_qubits, star=generate_star_states)
 #curr_circ, curr_init_graph = cgsc.create_ghz_state_circuit_debug(graph, backend.num_qubits)
 
 # draw graph and save the plot
 fname_graph = f"sim_{sim_id}_layout_graph_backend_{backend_str}.pdf"
 fname_graph = os.path.join(result_dir, fname_graph)
-mgo.draw_graph(curr_init_graph, title="Layout graph from "+backend_str+ " backend", fname=fname_graph, show_plot=show_graph)
+mgo.draw_graph(curr_init_graph, title="Layout graph from "+backend_str+ " backend", fname=fname_graph, show=show_graph)
 
 # Get fidelity observable
 #observalbe = SparsePauliOp(["X"*backend.num_qubits], coeffs=np.asarray([1.0])) # This is just a dummy observable used for debugging
