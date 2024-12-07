@@ -568,6 +568,15 @@ class MergePattern:
         
         self._merge_siblings_by_layer = sibling_layers
 
+    def get_initial_subgraphs(self) -> list[nx.Graph]:
+        pattern_graph_leafs = [node for node in self.pattern_graph.nodes if self.pattern_graph.in_degree(node) == 0]
+
+        subgraphs = []
+        for idx in pattern_graph_leafs:
+            subgraphs.append(self._subgraphs[idx])
+
+        return subgraphs
+
     def get_merge_pairs(self, layer: int) -> list[tuple[nx.Graph, nx.Graph, tuple[int, int]]]:
         """
         Returns a list of tuples containing the graphs that should be merged in the layer index and the merging edge

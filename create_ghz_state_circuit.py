@@ -161,7 +161,7 @@ def create_ghz_state_circuit_graph(graph_orig: Graph,
 
 def create_ghz_state_circuit_graph_pattern(pattern: MergePattern,
                                            total_num_qubits: int,
-                                           star: bool = False) -> Tuple[QuantumCircuit, Graph]:
+                                           star: bool = False) -> Tuple[QuantumCircuit, Graph, Graph]:
     # consistency check
     if max(list(pattern.initial_graph)) > total_num_qubits:
         raise ValueError("Node indices of input graph exceed total number of qubits in circuit!")
@@ -169,19 +169,19 @@ def create_ghz_state_circuit_graph_pattern(pattern: MergePattern,
     init_graph = pattern.initial_graph
 
     circ_shift_merge = QuantumCircuit(total_num_qubits)
+    # construct initial subgraphs
+    for graph in pattern.get_initial_subgraphs():
+        if star:
+            circ_shift_merge = generate_star_states.generate_star_state(graph, circ_shift_merge)
+        else:
+            circ_shift_merge = generate_star_states.generate_ghz_state(graph, circ_shift_merge)
 
+    cls_bit_cnt = 0 # counts how many measurements have been made
     for layer in range(len(pattern)):
         for graph_pair in pattern.get_merge_pairs(layer):
             subgraph1 = graph_pair[0]
             subgraph2 = graph_pair[1]
             new_center_tuple = graph_pair[2] # merging edge
-            # generate states corresponding to subgraphs
-            if star:
-                circ_shift_merge = generate_star_states.generate_star_state(subgraph1, circ_shift_merge)
-                circ_shift_merge = generate_star_states.generate_star_state(subgraph2, circ_shift_merge)
-            else:
-                circ_shift_merge = generate_star_states.generate_ghz_state(subgraph1, circ_shift_merge)
-                circ_shift_merge = generate_star_states.generate_ghz_state(subgraph2, circ_shift_merge)
 
             curr_center1 = mgo.get_graph_center(subgraph1) # determine current center
             curr_center2 = mgo.get_graph_center(subgraph2) # determine current center
@@ -216,7 +216,7 @@ def create_ghz_state_circuit_graph_pattern(pattern: MergePattern,
     
             circ_shift_merge.barrier()
     if star:
-        circ = convert_star_to_ghz(circ, subgraph1)
+        circ_shift_merge = convert_star_to_ghz(circ_shift_merge, subgraph1)
 
-    return circ, init_graph, subgraph1
+    return circ_shift_merge, init_graph, subgraph1
 
