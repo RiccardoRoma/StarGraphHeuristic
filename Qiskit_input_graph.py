@@ -302,59 +302,62 @@ def calculate_msq(G, show_status: bool = True):
     return merging_edges_list, MSQ, sid_total_gates
 
 
-def sequential_merge(G: nx.Graph, msq: list[nx.Graph]):
+def sequential_merge(G: nx.Graph, msq: list[nx.Graph], show_status: bool = False):
     # Create Binary tree graph Bt with nodes labeled 0, 1, ..., len(msq) - 1
     Bt = nx.DiGraph()
     Bt.add_nodes_from(range(len(msq)))
     
     # Keep track of the next available node index in Bt
     next_node_label = len(msq)
+
+    orig_msq_len = len(msq)
     
     i = 0
     # Iterate through msq
-    for j in range(1,len(msq)):
+    for j in range(1,orig_msq_len):
         si = msq[i]
         sj = msq[j]
         # Find common edges between si and sj
         common_edges = [e for e in G.edges if set(e).intersection(si.nodes()) and set(e).intersection(sj.nodes())]
         if common_edges:
             # Find a common edge to use for the merging
+            ## To-Do: choose edge based on error rate and for star states based on number of center shifts
             common_edge = random.choice(common_edges) # random choice
             # Common edge found
-            print(f"Common edge found between s{i} and s{j}: {common_edge}")
+            if show_status:
+                print(f"Common edge found between s{i} and s{j}: {common_edge}")
 
             # Add a new node to Bt
             Bt.add_node(next_node_label)
             Bt.add_edge(i, next_node_label, weight=common_edge) # add merging edge info
             Bt.add_edge(j, next_node_label, weight=common_edge) # add merging edge info
-            print(f"Added new node {next_node_label} to Bt, connecting s{i} and s{j} to it.")
+            if show_status:
+                print(f"Added new node {next_node_label} to Bt, connecting s{i} and s{j} to it.")
 
-            # Merge si and sj into a new sk
-            sk = nx.Graph()
-            sk.add_nodes_from(si.nodes())
-            sk.add_nodes_from(sj.nodes())
-            sk.add_edges_from(si.edges())
-            sk.add_edges_from(sj.edges())
-            sk.add_edges_from([common_edge]) # not required but easier to understand merging steps
+            # Merge si and sj into a new star graph sk
+            # use convention (smaller index, higher index)
+            if i < j:
+                if len(si) > 1:
+                    sk = mgo.merge_star_graphs(si, sj, common_edge, keep_center1=True, keep_center2=True)
+                else:
+                    sk = mgo.merge_star_graphs(sj, si, common_edge, keep_center1=True, keep_center2=True)
+                
+            elif j < i:
+                if len(sj) > 1:
+                    sk = mgo.merge_star_graphs(sj, si, common_edge, keep_center1=True, keep_center2=True)
+                else:
+                    sk = mgo.merge_star_graphs(si, sj, common_edge, keep_center1=True, keep_center2=True)
+            else:
+                raise ValueError("subgraph indices coincide!")
 
             # Add sk to msq and increment the next available node label
             msq.append(sk)
             i = next_node_label # last element in msq is now part of next merge
             next_node_label += 1
-
-    # Convert edges to unordered pairs to cover reversed order of edges
-    edges_A = {frozenset(edge) for edge in msq[-1].edges}
-    edges_B = {frozenset(edge) for edge in G.edges}
-    # check if final merged graph contains all nodes of initial graph G 
-    # and all edges of merged graph are contained in G
-    is_subgraph = set(msq[-1].nodes) <= set(G.nodes) and edges_A <= edges_B
-
-    if not is_subgraph:
-        raise ValueError("final graph after last merge is not a subgraph of initial graph!")
     
     return Bt, msq
 
-def parallel_merge(G: nx.Graph, msq: list[nx.Graph]):
+def parallel_merge(G: nx.Graph, msq: list[nx.Graph], show_status: bool = False):
     # Create Binary tree graph Bt with nodes labeled 0, 1, ..., len(msq) - 1
     Bt = nx.DiGraph()
     Bt.add_nodes_from(range(len(msq)))
@@ -386,23 +389,34 @@ def parallel_merge(G: nx.Graph, msq: list[nx.Graph]):
 
                 if common_edges:
                     # Find a common edge to use for the merging
+                    ## To-Do: choose edge based on error rate and for star states based on number of center shifts
                     common_edge = random.choice(common_edges) # random choice
                     # Common edge found
-                    print(f"Common edge found between s{i} and s{j}: {common_edge}")
+                    if show_status:
+                        print(f"Common edge found between s{i} and s{j}: {common_edge}")
 
                     # Add a new node to Bt
                     Bt.add_node(next_node_label)
                     Bt.add_edge(i, next_node_label, weight=common_edge) # add merging edge info
                     Bt.add_edge(j, next_node_label, weight=common_edge) # add merging edge info
-                    print(f"Added new node {next_node_label} to Bt, connecting s{i} and s{j} to it.")
+                    if show_status:
+                        print(f"Added new node {next_node_label} to Bt, connecting s{i} and s{j} to it.")
 
-                    # Merge si and sj into a new sk
-                    sk = nx.Graph()
-                    sk.add_nodes_from(si.nodes())
-                    sk.add_nodes_from(sj.nodes())
-                    sk.add_edges_from(si.edges())
-                    sk.add_edges_from(sj.edges())
-                    sk.add_edges_from([common_edge]) # not required but easier to understand merging steps
+                    # Merge si and sj into a new star graph sk
+                    # use convention (smaller index, higher index)
+                    if i < j:
+                        if len(si) > 1:
+                            sk = mgo.merge_star_graphs(si, sj, common_edge, keep_center1=True, keep_center2=True)
+                        else:
+                            sk = mgo.merge_star_graphs(sj, si, common_edge, keep_center1=True, keep_center2=True)
+                        
+                    elif j < i:
+                        if len(sj) > 1:
+                            sk = mgo.merge_star_graphs(sj, si, common_edge, keep_center1=True, keep_center2=True)
+                        else:
+                            sk = mgo.merge_star_graphs(si, sj, common_edge, keep_center1=True, keep_center2=True)
+                    else:
+                        raise ValueError("subgraph indices coincide!")
 
                     # Add sk to msq and increment the next available node label
                     msq.append(sk)
@@ -414,17 +428,6 @@ def parallel_merge(G: nx.Graph, msq: list[nx.Graph]):
 
                     break  # Exit the inner loop once a merge occurs
     
-    # draw_graph(Bt)
-    # Convert edges to unordered pairs to cover reversed order of edges
-    edges_A = {frozenset(edge) for edge in msq[-1].edges}
-    edges_B = {frozenset(edge) for edge in G.edges}
-    # check if final merged graph contains all nodes of initial graph G 
-    # and all edges of merged graph are contained in G
-    is_subgraph = set(msq[-1].nodes) <= set(G.nodes) and edges_A <= edges_B
-
-    if not is_subgraph:
-        raise ValueError("final graph after last merge is not a subgraph of initial graph!")
-
     return Bt, msq
 
 def draw_binary_tree(Bt, **kwargs):
@@ -591,7 +594,14 @@ class MergePattern:
             merging_edge = self._pattern_graph[idx1][parent_idx].get("weight", None)
             if not merging_edge:
                 raise ValueError("Unable to retrieve merging edge at pattern graph indices ({}, {})!".format(idx1, parent_idx))
-            merge_pairs.append((subgraphs[idx1], subgraphs[idx2], merging_edge))
+            # follow convention that the subgraph with the smallest index comes first (relevant for merging order, i.e., for graph states which center is kept)
+            # if this convention is changed also the convention in parallel_merge and sequential merge function must be changed
+            if idx1 < idx2:
+                merge_pairs.append((subgraphs[idx1], subgraphs[idx2], merging_edge))
+            elif idx2 < idx1:
+                merge_pairs.append((subgraphs[idx2], subgraphs[idx1], merging_edge))
+            else:
+                raise ValueError("merge sibling indices coincide!")
         return merge_pairs
     
     def draw_subgraphs(self, 

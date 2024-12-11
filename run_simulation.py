@@ -1,6 +1,6 @@
 import numpy as np
 import pickle
-from Qiskit_input_graph import MergePattern, draw_graph, calculate_msq
+from Qiskit_input_graph import MergePattern
 import modify_graph_objects as mgo
 from witness import witness_fancy, witness_plain, fidelity_est_simple, fidelity_full
 import networkx as nx
