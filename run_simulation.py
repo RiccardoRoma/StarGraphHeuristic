@@ -158,7 +158,7 @@ if parallel_merge:
 else:
     merge_pattern = MergePattern.from_graph_sequential(graph)
 
-curr_circ, curr_init_graph, curr_star_graph = cgsc.create_ghz_state_circuit_graph_pattern(merge_pattern, backend.num_qubits, star=generate_star_states)
+curr_circ, curr_init_graph, curr_star_graph = cgsc.create_ghz_state_circuit_graph(merge_pattern, backend.num_qubits, star=generate_star_states)
 #curr_circ, curr_init_graph = cgsc.create_ghz_state_circuit_debug(graph, backend.num_qubits)
 
 # draw graph and save the plot
