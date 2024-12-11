@@ -161,10 +161,25 @@ else:
 curr_circ, curr_init_graph, curr_star_graph = cgsc.create_ghz_state_circuit_graph(merge_pattern, backend.num_qubits, star=generate_star_states)
 #curr_circ, curr_init_graph = cgsc.create_ghz_state_circuit_debug(graph, backend.num_qubits)
 
-# draw graph and save the plot
+# draw initial layout graph and save the plot
 fname_graph = f"sim_{sim_id}_layout_graph_backend_{backend_str}.pdf"
 fname_graph = os.path.join(result_dir, fname_graph)
-mgo.draw_graph(curr_init_graph, title="Layout graph from "+backend_str+ " backend", fname=fname_graph, show=show_graph)
+mgo.draw_graph(merge_pattern.initial_graph, show_weights=True, title="Layout graph from "+backend_str+ " backend", fname=fname_graph, show=show_graph)
+
+# draw merge pattern graph and save the plot
+fname_graph = f"sim_{sim_id}_merge_pattern.pdf"
+fname_graph = os.path.join(result_dir, fname_graph)
+merge_pattern.draw_pattern_graph(show_weights=True, title="Merge pattern graph", fname=fname_graph, show=show_graph)
+
+# draw all subgraphs and save the plots
+dir_subgraphs = os.path.join(result_dir, "subgraphs")
+os.mkdir(dir_subgraphs)
+
+for idx in range(len(merge_pattern.subgraphs)):
+    fname_subgraph = f"sim_{sim_id}_subgraph_{idx}.pdf"
+    fname_subgraph = os.path.join(dir_subgraphs, fname_subgraph)
+    subgraph = merge_pattern.subgraphs[idx]
+    mgo.draw_graph(subgraph, show_weights=False, title=f"Subgraph {idx}", fname=fname_subgraph, show=False)
 
 # Get fidelity observable
 #observalbe = SparsePauliOp(["X"*backend.num_qubits], coeffs=np.asarray([1.0])) # This is just a dummy observable used for debugging
@@ -231,11 +246,11 @@ with open(fname_cal, "w") as f:
     yaml.dump(cal_dict, f)
 
 
-# pickle intial layout graph
-fname_graph = f"sim_{sim_id}_layout_graph_backend_{backend_str}.pickle"
-fname_graph = os.path.join(result_dir, fname_graph)
-with open(fname_graph, "wb") as f:
-    pickle.dump(curr_init_graph,f)
+# pickle merge pattern
+fname_pattern = f"sim_{sim_id}_merge_pattern.pickle"
+fname_pattern = os.path.join(result_dir, fname_pattern)
+with open(fname_pattern, "wb") as f:
+    pickle.dump(merge_pattern,f)
 
 # pickle initial circuit and save plot
 fname_circ = f"sim_{sim_id}_circuit_backend_{backend_str}.pickle"
