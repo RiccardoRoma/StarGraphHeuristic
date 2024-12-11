@@ -9,6 +9,7 @@ Created on Wed Feb 28 11:28:24 2024
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
+import copy
 import random
 from collections import defaultdict, deque
 from networkx.drawing.layout import circular_layout
@@ -35,10 +36,22 @@ import time
 #                 node_size=500)
 #         return G
 
-def draw_graph(graph, show_weights=False, node_color='yellow', layout="circular", title="", fname="", show_plot=True):
+def draw_graph(graph: nx.Graph, show_weights: bool=False, fig_size: tuple[int, int]=(16,9), node_color: str='yellow', layout: str="circular", title: str="", fname: str="", show: bool=True, **kwargs):
     """
     Draw the given graph using NetworkX and Matplotlib.
     """
+    # Default values 
+    if kwargs.get("node_size", None) is None:
+        kwargs["node_size"] = 500
+    if kwargs.get("font_size", None) is None:
+        kwargs["font_size"] = 10
+    if kwargs.get("font_color", None) is None:
+        kwargs["font_color"] = "black"
+    if kwargs.get("font_weight", None) is None:
+        kwargs["font_weight"] = "bold"
+    
+
+
     if layout == "circular":
         pos = nx.circular_layout(graph)
     elif layout == "planar":
@@ -51,18 +64,31 @@ def draw_graph(graph, show_weights=False, node_color='yellow', layout="circular"
         print("Unknown layout string, use spring layout")
         pos = nx.spring_layout(graph)  # Default to spring layout if layout does not match any implemented layout
 
-    plt.figure(figsize=(16, 9))
+    plt.figure(figsize=fig_size)
     if show_weights:
-        nx.draw(graph, pos, with_labels=False, node_color=node_color, node_size=500, font_size=10, font_color='black', font_weight='bold')
+        # handle show node label keyword
+        if kwargs.get("with_labels", None) is not None:
+            show_node_labels = kwargs.pop("with_labels")
+        else:
+            show_node_labels = True
+
+        #nx.draw(graph, pos, with_labels=False, node_color=node_color, node_size=500, font_size=10, font_color='black', font_weight='bold')
+        nx.draw(graph, pos, node_color=node_color, with_labels=False, **kwargs)
         # Draw node labels (including weights)
-        node_labels = {node: f"{node}\n({data.get('weight', 0.0)})" for node, data in graph.nodes(data=True)}
+        if show_node_labels:
+            node_labels = {node: f"{node}\n({data.get('weight', 0.0)})" for node, data in graph.nodes(data=True)}
+        else:
+            node_labels = {node: f"({data.get('weight', 0.0)})" for node, data in graph.nodes(data=True)}
         nx.draw_networkx_labels(graph, pos, labels=node_labels)
         
         # Draw edge labels
         edge_labels = nx.get_edge_attributes(graph, 'weight', default=0.0)
         nx.draw_networkx_edge_labels(graph, pos, edge_labels=edge_labels)
     else:
-        nx.draw(graph, pos, with_labels=True, node_color=node_color, node_size=500, font_size=10, font_color='black', font_weight='bold')
+        if kwargs.get("with_labels", None) is None:
+            kwargs["with_labels"] = True
+        #nx.draw(graph, pos, with_labels=True, node_color=node_color, node_size=500, font_size=10, font_color='black', font_weight='bold')
+        nx.draw(graph, pos, node_color=node_color, **kwargs)
 
 
     if len(title) == 0:
@@ -71,31 +97,79 @@ def draw_graph(graph, show_weights=False, node_color='yellow', layout="circular"
         plt.title(title)
     if len(fname) > 0:
         plt.savefig(fname, bbox_inches="tight")
-    if show_plot:
+
+    if show:
         plt.show()
 
 
-def update_graph_center(G,new_center):
+def update_graph_center(G: nx.Graph, new_center: int) -> nx.Graph:
     """
     shifts the center of the the graph
     """
     G.remove_edges_from(G.edges())
     for node in G.nodes():
         if node != new_center:
-            G.add_edge(new_center, node, weight=1) # Adding edge weight of 1
+            G.add_edge(new_center, node)
     return G
             
-def merging_two_graphs(G1,G2,t:tuple):
+def merging_two_graphs(G1: nx.Graph, G2: nx.Graph, t:tuple) -> nx.Graph:
     """
     merges two graphs G1 and G2 and new center will ALWAYS be G1_center
     """
-    G3 = G1.copy()
+    G3 = copy.deepcopy(G1)
+    G3.add_nodes_from(G2.nodes())
     for node in G2.nodes():
         if node != t[0]:
-            G3.add_edge(t[0], node, weight=1)  # Adding edge weight of 1      
+            G3.add_edge(t[0], node)
+
     return G3
 
-def get_graph_center(G):
+def merge_star_graphs(graph1_in: nx.Graph,
+                      graph2_in: nx.Graph,
+                      merging_edge: tuple[int, int],
+                      keep_center1: bool = True,
+                      keep_center2: bool = True) -> nx.Graph:
+    """
+    This function performs a full merge of two star graphs.
+    Determining its centers, shifting their center and merging them to a combined star graph
+    """
+    # create copies which can be modified without changing the initial graphs
+    graph1 = copy.deepcopy(graph1_in)
+    graph2 = copy.deepcopy(graph2_in)
+
+    # merging edges list tuples are not ordered after (graph1, graph2) but (smaller value, higher value). Consider this here
+    if merging_edge[0] in graph1.nodes:
+        new_center1 = merging_edge[0]
+    elif merging_edge[1] in graph1.nodes:
+        new_center1 = merging_edge[1]
+    else:
+        raise ValueError("merging edge {} don't contain a node of subgraph 1 {}".format(merging_edge, graph1.nodes))
+    if merging_edge[0] in graph2.nodes:
+        new_center2 = merging_edge[0]
+    elif merging_edge[1] in graph2.nodes:
+        new_center2 = merging_edge[1]
+    else:
+        raise ValueError("merging edge {} don't contain a node of subgraph 2 {}".format(merging_edge, graph2.nodes))
+    
+    # update center of graphs
+    graph1 = update_graph_center(graph1, new_center1)
+    graph2 = update_graph_center(graph2, new_center2)
+
+    # merge graph obejects accordingly
+    if keep_center1:
+        graph_merged = merging_two_graphs(graph1, graph2, (new_center1, new_center2))
+        if not keep_center2:
+            graph_merged.remove_node(new_center2)
+    elif keep_center2:
+        graph_merged = merging_two_graphs(graph2, graph1, (new_center2, new_center1))
+        if not keep_center1:
+            graph_merged.remove_node(new_center1)
+    else:
+        raise ValueError("Cannot remove both initial graph centers. One needs to be kept.")
+
+    return graph_merged
+
+def get_graph_center(G: nx.Graph) -> int:
     """
     Gives the center of the graph G, if it is a bell pair, it would randomly give you one node. 
     """   

@@ -3,6 +3,7 @@ backend_str: aer_simulator
 use_premium_access: false
 run_locally: true
 generate_star_states: false
+parallel_merge: false
 fidelity_witness: simple
 subgraph_size: null
 coupling_map_str: "fake_fractional"

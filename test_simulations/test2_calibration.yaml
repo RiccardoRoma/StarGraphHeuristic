@@ -3,6 +3,7 @@ backend_str: fake_fractional
 use_premium_access: false
 run_locally: true
 generate_star_states: true
+parallel_merge: false
 fidelity_witness: simple
 subgraph_size: null
 coupling_map_str: ""

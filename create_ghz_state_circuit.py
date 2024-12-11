@@ -6,7 +6,7 @@ import pickle
 import shift_center
 import generate_star_states
 import merge_graphs
-from Qiskit_input_graph import draw_graph, calculate_msq
+from Qiskit_input_graph import MergePattern, draw_graph, calculate_msq
 import networkx as nx
 from networkx import Graph
 import modify_graph_objects as mgo
@@ -71,21 +71,9 @@ def create_ghz_state_circuit_graph(graph_orig: Graph,
         # calculates the list of subgraphs in sequential merging order (MSQ) 
         # and at what edges we should merge the graphs (merging_edges_list)
     merging_edges_list, subgraphs, sid_total_gates = calculate_msq(graph_orig, show_status=False)
-
-    # set up a QuantumCircuit with all requried qubits and classical bits
-    # qregs = QuantumRegister(len(graph_orig.nodes())) # number of nodes in initial graph is the number of qubits needed.
-    # cregs = ClassicalRegister(len(subgraphs)-1) # if merging is sequentially than we need to measure (number of subgraphs - 1)-times
-    # circ = QuantumCircuit(qregs, cregs)
-    # circ = QuantumCircuit(len(graph_orig.nodes))
+    
     circ = QuantumCircuit(total_num_qubits)
 
-    # # create seperate copy for star state generation
-    # circ_substars = circ.copy()
-    # # iterate through Graph objects and ...
-    # for subgraph in MSQ:
-    #     # ... call generate star state
-    #     generate_star_states.generate_star_state(subgraph, circ_substars)
-    
     # create seperate copy for shifting of star centers and merging
     circ_shift_merge = circ.copy()
     
@@ -158,4 +146,63 @@ def create_ghz_state_circuit_graph(graph_orig: Graph,
         circ = convert_star_to_ghz(circ, subgraph1)
 
     return circ, init_graph, subgraph1
+
+def create_ghz_state_circuit_graph_pattern(pattern: MergePattern,
+                                           total_num_qubits: int,
+                                           star: bool = False) -> Tuple[QuantumCircuit, Graph, Graph]:
+    # consistency check
+    if max(list(pattern.initial_graph)) > total_num_qubits:
+        raise ValueError("Node indices of input graph exceed total number of qubits in circuit!")
+    
+    init_graph = pattern.initial_graph
+
+    circ_shift_merge = QuantumCircuit(total_num_qubits)
+    # construct initial subgraphs
+    for graph in pattern.get_initial_subgraphs():
+        if star:
+            circ_shift_merge = generate_star_states.generate_star_state(graph, circ_shift_merge)
+        else:
+            circ_shift_merge = generate_star_states.generate_ghz_state(graph, circ_shift_merge)
+
+    cls_bit_cnt = 0 # counts how many measurements have been made
+    for layer in range(len(pattern)):
+        for graph_pair in pattern.get_merge_pairs(layer):
+            subgraph1 = graph_pair[0]
+            subgraph2 = graph_pair[1]
+            new_center_tuple = graph_pair[2] # merging edge
+
+            curr_center1 = mgo.get_graph_center(subgraph1) # determine current center
+            curr_center2 = mgo.get_graph_center(subgraph2) # determine current center
+            # merging edges list tuples are not ordered after (graph1, graph2) but (smaller value, higher value). Consider this here
+            if new_center_tuple[0] in subgraph1.nodes:
+                new_center1 = new_center_tuple[0]
+            elif new_center_tuple[1] in subgraph1.nodes:
+                new_center1 = new_center_tuple[1]
+            else:
+                raise ValueError("new centers {} don't contain a node of subgraph 1 {}".format(new_center_tuple, subgraph1.nodes))
+            if new_center_tuple[0] in subgraph2.nodes:
+                new_center2 = new_center_tuple[0]
+            elif new_center_tuple[1] in subgraph2.nodes:
+                new_center2 = new_center_tuple[1]
+            else:
+                raise ValueError("new centers {} don't contain a node of subgraph 2 {}".format(new_center_tuple, subgraph2.nodes))
+            
+            # shift star graph centers
+            if star:
+                circ_shift_merge = shift_center.shift_centers_circ(circ_shift_merge, subgraph1, curr_center1, new_center1) # call shifting function
+                circ_shift_merge = shift_center.shift_centers_circ(circ_shift_merge, subgraph2, curr_center2, new_center2) # call shifting function
+            
+            # merging of subgraph1 and subgraph2
+            if star:
+                circ_shift_merge, cls_bit_cnt = merge_graphs.merge_graphs_circ(circ_shift_merge, new_center1, subgraph1, new_center2, subgraph2, cls_bit_cnt)
+            else:
+                circ_shift_merge, cls_bit_cnt = merge_graphs.merge_ghz_circ(circ_shift_merge, new_center1, subgraph1, new_center2, subgraph2, cls_bit_cnt)
+    
+            circ_shift_merge.barrier()
+
+    subgraph = pattern.subgraphs[-1]
+    if star:
+        circ_shift_merge = convert_star_to_ghz(circ_shift_merge, subgraph)
+
+    return circ_shift_merge, init_graph, subgraph
 
