@@ -467,8 +467,10 @@ def find_merging_stars_with_digraph(msq, G):
     for sp in range(1):
         # Iterate through all pairs of stars
         for i, si in enumerate(msq):
+            if si in merged_stars:  # Skip the stars that are already merged
+                continue
             for j, sj in enumerate(msq):
-                if i == j:  # Skip self-checks
+                if i == j or sj in merged_stars:  # Skip self-checks and merged stars
                     continue
 
                 # Check merge possibility between si and sj
@@ -476,7 +478,7 @@ def find_merging_stars_with_digraph(msq, G):
                 if edge is not None:
                     # Add edge to merged_edges and update associations
                     merged_edges.append(edge)
-                    merge_associations.append((edge, si, sj))
+                    merge_associations.append((edge, si, sj, i, j))
 
                     # Add si and sj to merged_stars (ensure uniqueness)
                     if si not in merged_stars:
@@ -487,15 +489,87 @@ def find_merging_stars_with_digraph(msq, G):
         # After processing all merges, check if the graph is connected
         # if nx.is_strongly_connected(D):
         #     break
-    for p, subgraph in enumerate(merged_stars):
-        print(f"Drawing subgraph {i + 1}")
-        draw_graph(subgraph, node_color="lightblue")
+        for p, subgraph in enumerate(merged_stars):
+            print(f"Drawing subgraph {i + 1}")
+            draw_graph(subgraph, node_color="lightblue")
 
-    print("merged stars are ", merged_stars)
-    print("merged edges are ", merged_edges)
-    print("merge_assosiations ", merge_associations)
+        print("merged stars are ", merged_stars)
+        print("merged edges are ", merged_edges)
+        print("merge_assosiations ", merge_associations)
+        
+        for k in merge_associations:
+            print("mergee_element",k)
 
-    draw_graph(D)
+
+        draw_graph(D)
+
+        # Initialize a dictionary to track which node each merged star is associated with
+        
+
+        for edge, si, sj, i, j in merge_associations:
+            # Check if there are edges from i or j
+            edges_i = list(D.out_edges(i))  # Get outgoing edges of i
+            edges_j = list(D.out_edges(j))  # Get outgoing edges of j
+            
+            # Check if any edges exist for i
+            if edges_i:
+                connected_node = edges_i[0][1]  # Get the node connected to i (the destination of the edge)
+            elif edges_j:
+                connected_node = edges_j[0][1]  # Get the node connected to j (the destination of the edge)
+            else:
+                connected_node = None  # No edges from j
+            
+            # If no connection found, create a new node
+            if connected_node is None:
+                # Get the next node number by checking the current number of nodes in the graph
+                new_node = len(D.nodes)
+                D.add_node(new_node)  # Add the new node to the graph
+                
+                # Add directed edges from i and j to the new node
+                D.add_edge(i, new_node)
+                D.add_edge(j, new_node)
+
+                sk = merging_many_stars([si, sj], G, [edge])
+                # Add the new merged star to msq
+                msq.append(sk)
+                
+                # connected_node = new_node  # Update connected_node to the new node number
+            else:
+
+                if i == connected_node:
+                    D.add_edge(j, connected_node)
+
+                    sn = msq[connected_node]  # Get the subgraph at index connected_node
+
+                    sk = merging_many_stars([sj, sn], G, [edge])
+                    msq.append(sk)
+                else:
+                    D.add_edge(i, connected_node)
+
+                    sn = msq[connected_node]  # Get the subgraph at index connected_node
+
+                    sk = merging_many_stars([si, sn], G, [edge])
+                    msq.append(sk)
+
+
+
+                # If connected_node is already there, join i and j to that node
+                D.add_edge(i, connected_node)
+                D.add_edge(j, connected_node)
+
+                sk = merging_many_stars([si, sj], G, [edge])
+                msq.append(sk)
+        
+        
+
+        merged_edges.clear()
+        connected_node = None
+        print(msq[-2].nodes())
+            
+
+        draw_graph(D,node_color="pink")
+
+
 
     return merged_stars, merged_edges, merge_associations
 
