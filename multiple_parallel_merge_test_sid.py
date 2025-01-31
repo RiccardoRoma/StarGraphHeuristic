@@ -24,6 +24,7 @@ import concurrent.futures
 import time
 import modify_graph_objects as mgo
 from networkx.algorithms.isomorphism import is_isomorphic
+from collections import deque
 
 
 
@@ -440,6 +441,41 @@ def merging_many_stars(subgraphs, G, merged_edges):
 
     return merged_graph
 
+def find_sink_and_longest_leaf(G):
+    # Find the sink node
+    for node in G.nodes:
+        if G.out_degree(node) == 0 and G.in_degree(node) > 0:
+            sink_node = node
+            break
+    else:
+        return None, None  # No sink node found
+
+    # Reverse the graph to follow incoming edges
+    reversed_G = G.reverse()
+    
+    # Perform BFS to find the longest path from the sink node
+    visited = set()
+    queue = deque([(sink_node, 0)])  # (node, distance)
+    visited.add(sink_node)
+    
+    longest_leaf = None
+    max_distance = -1
+    
+    while queue:
+        node, distance = queue.popleft()
+        
+        # If the node is a leaf node and has the longest distance, update
+        if reversed_G.out_degree(node) == 0:
+            if distance > max_distance:
+                max_distance = distance
+                longest_leaf = node
+        
+        for neighbor in reversed_G.neighbors(node):
+            if neighbor not in visited:
+                visited.add(neighbor)
+                queue.append((neighbor, distance + 1))
+    
+    return sink_node, (longest_leaf, max_distance)
 
 def find_merging_tree(msq, G):
     """
@@ -918,7 +954,9 @@ if __name__ == "__main__":
     print(f"number of subgraphs is initially {len(msq1)}.")
 
     draw_graph(init_graph)
-    find_merging_tree(msq1, init_graph)
+    D,_=find_merging_tree(msq1, init_graph)
+    sink_node, (longest_leaf, max_distance) = find_sink_and_longest_leaf(D)
+    print("sink node is ", sink_node, "longest leaf is ", longest_leaf, "max distance is ", max_distance)
     
     
 
