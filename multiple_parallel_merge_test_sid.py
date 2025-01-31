@@ -23,6 +23,7 @@ import csv
 import concurrent.futures
 import time
 import modify_graph_objects as mgo
+from networkx.algorithms.isomorphism import is_isomorphic
 
 
 def generate_random_graph(n, p, use_barabasi):
@@ -439,6 +440,25 @@ def merging_many_stars(subgraphs, G, merged_edges):
     return merged_graph
 
 
+def are_graph_lists_equal(list1, list2):
+    if len(list1) != len(list2):
+        return False  # If they have different lengths, they can't be the same
+
+    matched = [False] * len(list2)  # Track which graphs in list2 are matched
+
+    for g1 in list1:
+        found_match = False
+        for i, g2 in enumerate(list2):
+            if not matched[i] and is_isomorphic(g1, g2):
+                matched[i] = True
+                found_match = True
+                break
+        if not found_match:
+            return False  # If no match was found for g1, the lists are not the same
+
+    return True
+
+
 def find_merging_stars_with_digraph(msq, G):
     """
     Find merging stars and track the merging process using a directed graph (DiGraph).
@@ -463,8 +483,8 @@ def find_merging_stars_with_digraph(msq, G):
     D.add_nodes_from(range(len(msq_original)))  # Nodes are indices of msq elements
 
     # Loop until the DiGraph is strongly connected
-    # while len(list(nx.strongly_connected_components(D))) > 1:
-    for sp in range(1):
+    # while not are_graph_lists_equal(msq, merged_stars):
+    for sp in range(2):
         # Iterate through all pairs of stars
         for i, si in enumerate(msq):
             if si in merged_stars:  # Skip the stars that are already merged
@@ -486,27 +506,28 @@ def find_merging_stars_with_digraph(msq, G):
                     if sj not in merged_stars:
                         merged_stars.append(sj)
 
-        # After processing all merges, check if the graph is connected
-        # if nx.is_strongly_connected(D):
-        #     break
-        for p, subgraph in enumerate(merged_stars):
-            print(f"Drawing subgraph {i + 1}")
-            draw_graph(subgraph, node_color="lightblue")
 
-        print("merged stars are ", merged_stars)
-        print("merged edges are ", merged_edges)
+        # for p, subgraph in enumerate(merged_stars):
+        #     print(f"Drawing subgraph {i + 1}")
+        #     draw_graph(subgraph, node_color="lightblue")
+
+        # print("merged stars are ", merged_stars)
+        # print("merged edges are ", merged_edges)
         print("merge_assosiations ", merge_associations)
         
-        for k in merge_associations:
-            print("mergee_element",k)
+        # for k in merge_associations:
+        #     print("mergee_element",k)
 
 
-        draw_graph(D)
+        # draw_graph(D)
 
         # Initialize a dictionary to track which node each merged star is associated with
+        edi = False
+        edj = False
         
 
         for edge, si, sj, i, j in merge_associations:
+            print("edge is ", edge, i,j)
             # Check if there are edges from i or j
             edges_i = list(D.out_edges(i))  # Get outgoing edges of i
             edges_j = list(D.out_edges(j))  # Get outgoing edges of j
@@ -514,8 +535,10 @@ def find_merging_stars_with_digraph(msq, G):
             # Check if any edges exist for i
             if edges_i:
                 connected_node = edges_i[0][1]  # Get the node connected to i (the destination of the edge)
+                edi = True
             elif edges_j:
                 connected_node = edges_j[0][1]  # Get the node connected to j (the destination of the edge)
+                edj = True
             else:
                 connected_node = None  # No edges from j
             
@@ -536,38 +559,44 @@ def find_merging_stars_with_digraph(msq, G):
                 # connected_node = new_node  # Update connected_node to the new node number
             else:
 
-                if i == connected_node:
+                if edi == True:
                     D.add_edge(j, connected_node)
 
                     sn = msq[connected_node]  # Get the subgraph at index connected_node
 
+                    print("connected node is ", connected_node)
+
                     sk = merging_many_stars([sj, sn], G, [edge])
                     msq.append(sk)
-                else:
+                    
+                elif edj == True:
                     D.add_edge(i, connected_node)
 
                     sn = msq[connected_node]  # Get the subgraph at index connected_node
 
+                    print("connected node is ", connected_node)
+
                     sk = merging_many_stars([si, sn], G, [edge])
                     msq.append(sk)
 
-
-
-                # If connected_node is already there, join i and j to that node
-                D.add_edge(i, connected_node)
-                D.add_edge(j, connected_node)
-
-                sk = merging_many_stars([si, sj], G, [edge])
-                msq.append(sk)
-        
-        
-
         merged_edges.clear()
         connected_node = None
-        print(msq[-2].nodes())
+        edi = False
+        edj = False
+        
+        for subgraph in msq:
+            print(subgraph.nodes())
+
+        # for k in merge_associations:
+        #     print("mergee_element",k)
+
+        for g in merged_stars:
+            print("merged stars are ", g.nodes())
+            
             
 
         draw_graph(D,node_color="pink")
+        print(are_graph_lists_equal(msq, merged_stars))
 
 
 
@@ -922,6 +951,7 @@ if __name__ == "__main__":
 
     find_merging_stars_with_digraph(msq1, init_graph)
     draw_graph(init_graph)
+    
 
     # bt1, _ = parallel_merge(init_graph, msq1)
 
