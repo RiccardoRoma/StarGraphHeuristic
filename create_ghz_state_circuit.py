@@ -65,6 +65,37 @@ def create_ghz_state_circuit_debug(graph_orig: Graph,
 
     return circ, graph_orig
 
+def create_ghz_state_circuit_grow(graph_orig: Graph,
+                                  total_num_qubits: int,
+                                  state_size: int = None) -> Tuple[QuantumCircuit, Graph]:
+    # consistency check
+    if max(list(graph_orig)) > total_num_qubits:
+        raise ValueError("Node indices of input graph exceed total number of qubits in circuit!")
+    # save initial graph
+    init_graph = copy.deepcopy(graph_orig)
+    circ = QuantumCircuit(total_num_qubits)
+
+    if state_size is None:
+        state_size = len(init_graph)
+
+    max_degree_node = mgo.get_graph_center(init_graph)
+
+    considered_nodes = [max_degree_node]
+    circ.h(max_degree_node)
+    while len(considered_nodes) < state_size:
+        for n0 in considered_nodes:
+            if len(considered_nodes) > state_size:
+                break
+            for n1 in init_graph.neighbors(n0):
+                if n1 not in considered_nodes:
+                    if len(considered_nodes) > state_size:
+                        break
+                    else:
+                        circ.cx(n0, n1)
+                        considered_nodes.append(n1)
+
+    return circ, graph_orig
+
 
 def create_ghz_state_circuit_graph(pattern: MergePattern,
                                            total_num_qubits: int,
