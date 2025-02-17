@@ -25,7 +25,18 @@ import time
 import modify_graph_objects as mgo
 
 
-def generate_random_graph(n, p, use_barabasi):
+def generate_random_graph(n, p, use_barabasi, show_plot=True):
+    """Create a connected random graph according to the Barabasi-Albert model or the Edros-Renyi model.
+
+    Args:
+        n: Number of nodes in the graph, i.e., range(n) = list of the nodes.
+        p: Measure of connectedness in both models.
+        use_barabasi: Bool flag to use Barabasi-Albert model. 
+        show_plot: plot generated random graph
+
+    Returns:
+        Random graphs as a networkx graph object
+    """
     if use_barabasi:
         # Generate a random graph using the Barabasi-Albert model
         G = nx.barabasi_albert_graph(n, p, seed=None, initial_graph=None)
@@ -45,10 +56,12 @@ def generate_random_graph(n, p, use_barabasi):
             for e in node_edges:
                 if random.random() < p:
                     G.add_edge(*e, weight=1)  # Adding edge weight of 1
-        plt.figure()
-        nx.draw(G, node_color='lightgreen', 
-                with_labels=True, 
-                node_size=500)
+        if show_plot:
+            plt.figure()
+            draw_graph(G, node_color='lightgreen', 
+                       with_labels=True, 
+                       node_size=500,
+                       show=show_plot)
     return G
 
 def generate_graph(nodes_list, edges_list, use_barabasi):
