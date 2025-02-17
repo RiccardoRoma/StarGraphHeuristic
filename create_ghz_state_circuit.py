@@ -69,7 +69,7 @@ def create_ghz_state_circuit_grow(graph_orig: Graph,
                                   total_num_qubits: int,
                                   state_size: int = None) -> Tuple[QuantumCircuit, Graph]:
     # consistency check
-    if max(list(graph_orig)) > total_num_qubits:
+    if max(list(graph_orig)) >= total_num_qubits:
         raise ValueError("Node indices of input graph exceed total number of qubits in circuit!")
     # save initial graph
     init_graph = copy.deepcopy(graph_orig)
