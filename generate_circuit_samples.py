@@ -5,11 +5,11 @@ import networkx as nx
 from networkx import Graph
 from qiskit.providers import BackendV2
 from typing import Union
-from IBM_hardware_data import find_connected_subgraph_with_lowest_weight
 from Qiskit_input_graph import generate_random_graph
 import random
 import warnings
 from tqdm import tqdm
+import itertools
 
 def get_ibm_layout_graph(backend: BackendV2) -> Graph:
     """This function extracts the layout graph from a given qiskit.BackendV2 object
@@ -83,17 +83,17 @@ def random_connected_subgraph(G: Graph,
 
     return G.subgraph(visited).copy()
 
-def create_samples_random_graph(dir: str,
+def create_samples_random_graph(output_dir: str,
                                 rnd_graph_sizes: list[int],
-                                p: Union[float, int],
+                                p_vals: Union[list[float], list[int]],
                                 samples: Union[list[int], int] = 10,
                                 use_barabasi: bool = False) -> None:
     """Create samples of random graphs and save it to pickle files in a given directory.
 
     Args:
-        dir: directory into which outpput should be saved
+        output_dir: directory into which output should be saved
         rnd_graph_sizes: list of graph sizes that should be generated
-        p: Measure of connectedness in the random graph
+        p_vals: List of p values. The p value is a measure of connectedness in the random graph.
         samples: number of samples for each random graph of a certain size. Defaults to 10.
         use_barabasi: Bool flag to use Barabasi-Albert model for random graph generation. Defaults to False, i.e., use Endrös-Rényi model.
 
@@ -101,26 +101,15 @@ def create_samples_random_graph(dir: str,
         FileExistsError: If a unique filename for a certain generated graph already exists.
     """
     # if directory does not exist, create the directory and all parent directories
-    if not os.path.isdir(dir):
-        os.makedirs(dir)
-
-    # create proper sub-directory
-    if use_barabasi:
-        sub_dir = "random_graphs_barabasi_albert_p{}/".format(p)
-    else:
-        sub_dir = "random_graphs_endros_renyi_p{}/".format(p)
-
-    output_dir = os.path.join(dir, sub_dir)
-
     if os.path.isdir(output_dir):
-        warnings.warn("Sub-directory {} does already exist in parent directory {}!".format(sub_dir, dir))
+        warnings.warn("Result directory {} does already exist!".format(output_dir))
     else:
         os.mkdir(output_dir)
     
     # check input type of samples
     if isinstance(samples, int):
         # samples are [0,1,...,samples-1]
-        samples_itr = range(samples)
+        samples_itr = list(range(samples))
     elif isinstance(samples, list):
         # samples are input list
         samples_itr = samples
@@ -128,31 +117,31 @@ def create_samples_random_graph(dir: str,
         raise ValueError("Input samples must be a integer or a list of integers!")
 
     # Iterate through number of qubits and samples
-    print("Generate random graphs for {} different graph sizes between {} and {}, p={}, samples/size={}.".format(len(graph_sizes), min(graph_sizes),max(graph_sizes), p, len(samples_itr)))    
-    for graph_size in tqdm(rnd_graph_sizes):
-        for smpl in samples_itr:
-            # create filename for current graph
-            if use_barabasi:
-                fname_graph = "random_graph_n{}_p{}_barabasi_albert_smpl{}.pkl".format(graph_size, p, smpl)
-            else:
-                fname_graph = "random_graph_n{}_p{}_endros_renyi_smpl{}.pkl".format(graph_size, p, smpl)
-            
-            # create current random graph
-            curr_graph = generate_random_graph(graph_size, p, use_barabasi, show_plot=False)
+    param_iter = list(itertools.product(graph_sizes, p_vals, samples_itr))
+    print("Generate {} random graphs for {} different graph sizes between {} and {} and {} different p values between {} and {}, samples/run={}.".format(len(param_iter), len(graph_sizes), min(graph_sizes),max(graph_sizes), len(p_vals), min(p_vals), max(p_vals), len(samples_itr)))    
+    for graph_size, p, smpl in tqdm(param_iter):
+        # create filename for current graph
+        if use_barabasi:
+            fname_graph = "random_graph_n{}_p{}_barabasi_albert_smpl{}.pkl".format(graph_size, p, smpl)
+        else:
+            fname_graph = "random_graph_n{}_p{}_endros_renyi_smpl{}.pkl".format(graph_size, p, smpl)
+        
+        # create current random graph
+        curr_graph = generate_random_graph(graph_size, p, use_barabasi, show_plot=False)
 
-            # Check if current filename already exists in output directory
-            if os.path.isfile(os.path.join(output_dir, fname_graph)):
-                raise FileExistsError("File {} does already exist in output directory {}!".format(fname_graph, output_dir))
-            
-            with open(os.path.join(output_dir, fname_graph), "wb") as f:
-                pickle.dump(curr_graph, f)
+        # Check if current filename already exists in output directory
+        if os.path.isfile(os.path.join(output_dir, fname_graph)):
+            raise FileExistsError("File {} does already exist in output directory {}!".format(fname_graph, output_dir))
+        
+        with open(os.path.join(output_dir, fname_graph), "wb") as f:
+            pickle.dump(curr_graph, f)
 
 if __name__=="__main__":
     graph_sizes = np.linspace(10, 400, 50, dtype=int)
-    dir = os.path.join(os.getcwd(), "graph_samples/")
-    p_list = [0.1, 0.4, 0.7, 1.0]
+    dir = os.path.join(os.getcwd(), "graph_samples/random_graph_endros_renyi_1/")
+    #p_list = [0.1, 0.4, 0.7, 1.0]
+    p_list = np.round(np.linspace(0.05, 1.0, 20), 2) # round to two decimal places
     #p_list = [0.1]
     samples = 10
 
-    for p in p_list:
-        create_samples_random_graph(dir, graph_sizes, p, samples=samples, use_barabasi=False)
+    create_samples_random_graph(dir, graph_sizes, p_list, samples=samples, use_barabasi=False)
