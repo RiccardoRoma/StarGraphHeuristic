@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Created on Thu Jan 18 15:25:38 2024
+Created on Thu Feb 18, 2025 15:25:38 2024
 
 @author: siddhu
 
@@ -86,25 +86,37 @@ def draw_graph(graph, **kwargs):
     mgo.draw_graph(graph, **kwargs)
 
 
-def calculate_msq(G, scaling_factor: int, show_status: bool = True):
+def compute_scaling_factor(G, target):
+    """
+    Compute the scaling factor given a graph G and a target degree.
+
+    Parameters:
+        G (networkx.Graph): The input graph.
+        target (int): The desired target degree.
+
+    Returns:
+        float: The computed scaling factor.
+    """
+    avg_degree = sum(dict(G.degree()).values()) / G.number_of_nodes()
+    if avg_degree == 0:
+        return 0.0  # Avoid division by zero
+
+    scaling_factor = target / avg_degree
+    return (scaling_factor, 1.0)
+
+
+def calculate_msq(G, scaling_factor: float = 1.0, show_status: bool = True):
     """
     Calculates the gates using the SS method on the given graph G.
     Modified to pick stars of (roughly) consistent size based on the average degree.
     """
-    MS = []  # a list to store all small stars and merging sequence.
+
     Picked_Stars = []
     MSQ = []
-    MSG = []
-    merging_edges_list = []
-
     MG = {}
     SG = {}
-    OPSG = {}
-    sid_total_gates = 0
-    # total_gates = len(connected_subgraph)-2 # gives the no of nodes,
     tn = []
     edu = []
-
     l = 0
 
     # Compute target degree based on the average degree of the original graph
@@ -179,205 +191,9 @@ def calculate_msq(G, scaling_factor: int, show_status: bool = True):
 
     for i in SG.keys():
         Picked_Stars = list(SG.values())
-    MSG = Picked_Stars.copy()
+    MSQ = Picked_Stars.copy()
 
-    # ------------------ OLD CODE ------------------------------------------------------
-
-    # MS = []  # a list to store all small stars and merging sequence.
-    # Picked_Stars = []
-    # MSQ = []
-    # MSG = []
-    # merging_edges_list = []
-
-    # MG = {}
-    # SG = {}
-    # OPSG = {}
-    # sid_total_gates = 0
-    # # total_gates = len(connected_subgraph)-2 # gives the no of nodes,
-    # tn = []
-    # edu = []
-
-    # l = 0
-
-    # MG[0] = G.copy()
-    # an = list(MG[0].nodes())
-
-    # while MG[l].number_of_nodes() > 0:
-
-    #     if nx.is_empty(MG[l]) == True:
-    #         if show_status:
-    #             print("I am here")
-    #             plt.figure(l + 100)
-    #             nx.draw(MG[l], node_color="lightblue", with_labels=True, node_size=500)
-    #         for node in MG[l].nodes():
-    #             SG[l + 1] = nx.Graph()
-    #             SG[l + 1].add_node(node)
-    #             if show_status:
-    #                 plt.figure(l + 150)
-    #                 nx.draw(
-    #                     SG[l + 1],
-    #                     node_color="lightpink",
-    #                     with_labels=True,
-    #                     node_size=500,
-    #                 )
-    #             l += 1
-    #         break
-    #     else:
-
-    #         a = max(dict(MG[l].degree()).items(), key=lambda x: x[1])
-    #         b = MG[l].edges(a[0])
-    #         SG[l] = nx.Graph(b)
-    #         MG[l + 1] = MG[l].copy()
-    #         # MG[l + 1].remove_node(a[0])
-    #         MG[l + 1].remove_nodes_from(SG[l].nodes())
-    #         if show_status:
-    #             plt.figure(l + 50)
-    #             # if l==0:
-    #             #     MS.append(SG[l].copy())
-    #             nx.draw(SG[l], node_color="lightpink", with_labels=True, node_size=500)
-    #         tn.extend(list(SG[l].nodes()))
-    #         edu.extend(list(SG[l].edges()))
-
-    #         check = all(item in tn for item in an)
-    #         if check is True:
-    #             break
-    #         else:
-    #             l += 1
-    # for i in SG.keys():
-    #     Picked_Stars = list(SG.values())
-    # # for j in range(len(Picked_Stars)):
-    # #     draw_graph(Picked_Stars[j])
-    # # print(SG)
-    # MSG = Picked_Stars.copy()
-
-    # ------------------ Code from here on remains unchanged ------------------
-
-    first_time = True
-
-    if len(SG) == 1:
-        MSQ.append(SG[0].copy())
-    else:
-
-        while len(SG) > 1:
-            common_edge_found = False
-            common_edge_index = 0
-
-            for i in SG.keys():
-                if i == 0:
-                    continue
-                common_edges = [
-                    e
-                    for e in G.edges
-                    if set(e).intersection(SG[0].nodes())
-                    and set(e).intersection(SG[i].nodes())
-                ]
-                if show_status:
-                    print(common_edges)
-                    print("I am here and loop number is ", i)
-
-                if len(common_edges) != 0:
-                    if show_status:
-                        print("I am here second time and loop number is ", i)
-                    common_edge_found = True
-                    common_edge_index = i
-
-                    # This is just to copy first MSG[0] to MSQ list
-                    if first_time:
-                        MSQ.append(SG[0].copy())
-                    first_time = False
-
-                    MSQ.append(SG[i].copy())
-
-                    # Find a common node in SG[0], SG[i] at random
-                    common_edge = random.choice(common_edges)
-                    merging_edges_list.append(common_edge)
-                    if show_status:
-                        print("common edge is", common_edge)
-
-                    # Assign new star center nodes to each each graph
-                    if SG[0].has_node(common_edge[0]):
-                        cn_0 = common_edge[0]
-                        cn_i = common_edge[1]
-                        if show_status:
-                            print("common node of cn_i is", cn_i)
-                    else:
-                        cn_0 = common_edge[1]
-                        cn_i = common_edge[0]
-                        if show_status:
-                            print("common node of cn_i is", cn_i)
-
-                    if (
-                        cn_0 == max(dict(SG[0].degree()).items(), key=lambda x: x[1])[0]
-                        or len(SG[0].nodes()) == 2
-                    ):
-                        pass
-
-                    else:
-                        # Shifting center of MSG[0]
-                        SG[0].remove_edges_from(SG[0].edges())
-                        # Add edges from common_node to all other nodes in SG[0] (avoid self-edges)
-                        for node in SG[0].nodes():
-                            if node != cn_0:
-                                SG[0].add_edge(
-                                    cn_0, node, weight=1
-                                )  # Adding edge weight of 1
-                        sid_total_gates += 2  # For shifting SG[0] star (two H gates)
-                        if show_status:
-                            draw_graph(SG[0])
-
-                    if (
-                        cn_i == max(dict(SG[i].degree()).items(), key=lambda x: x[1])[0]
-                        or len(SG[i].nodes()) == 2
-                    ):
-                        if show_status:
-                            print("shift is not required for cn_i")
-                        pass
-
-                    else:
-                        # Shifting center of MSG[i]
-                        SG[i].remove_edges_from(SG[i].edges())
-                        # Add edges from common_node to all other nodes in SG[0] (avoid self-edges)
-                        for node in SG[i].nodes():
-                            if node != cn_i:
-                                SG[i].add_edge(
-                                    cn_i, node, weight=1
-                                )  # Adding edge weight of 1
-                        sid_total_gates += 2  # For shifting SG[0] star (two H gates)
-                        if show_status:
-                            draw_graph(SG[i])
-
-                    # Merging the two stars
-                    for node in SG[i].nodes():
-                        if node != cn_0:
-                            SG[0].add_edge(
-                                cn_0, node, weight=1
-                            )  # Adding edge weight of 1
-
-                    sid_total_gates += 1  # For merging (one CNOT gate)
-                    if show_status:
-                        draw_graph(SG[0])
-
-                    # Deleting the MSG[i] star as it is merged to MSG[0]
-                    break
-
-            if common_edge_found:
-                del SG[common_edge_index]  # Remove the subgraph at index i
-
-            else:
-                if show_status:
-                    print("no common edges found in this iteration")
-                break
-
-        # Adding Star formation gates
-        for pq in range(len(MSQ)):
-            if MSQ[pq].number_of_nodes() == 2:
-                pass
-            elif MSQ[pq].number_of_nodes() == 1:
-                pass
-            else:
-                sid_total_gates += MSQ[pq].number_of_nodes() - 2
-
-    return merging_edges_list, MSQ, MSG, sid_total_gates
+    return MSQ, target
 
 
 if __name__ == "__main__":
@@ -406,7 +222,7 @@ if __name__ == "__main__":
     draw_graph(init_graph, show=True)
     # calculate_gate_ss(generate_ibm_graph(nodes_list, edges_list, use_barabasi=False))
     # _,msq,_= calculate_msq(generate_random_graph(10, 0.1, use_barabasi=False))
-    _, msq1, msg1, _ = calculate_msq(init_graph, 0.1, show_status=False)
+    msq1, target_size = calculate_msq(init_graph, 1.0, show_status=False)
+
     for i in range(len(msq1)):
-        draw_graph(msq1[i], show=False)
-    print(f"number of subgraphs is initially {len(msq1)}.")
+        draw_graph(msq1[i], node_color="pink", show=True)
