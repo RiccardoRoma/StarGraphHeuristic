@@ -105,7 +105,7 @@ def compute_scaling_factor(G, target):
     return (scaling_factor, 1.0)
 
 
-def calculate_msq(G, scaling_factor: float = 1.0, show_status: bool = True):
+def calculate_msq_avg_degree(G, scaling_factor: float = 1.0, show_status: bool = True):
     """
     Calculates the gates using the SS method on the given graph G.
     Modified to pick stars of (roughly) consistent size based on the average degree.
@@ -222,7 +222,7 @@ if __name__ == "__main__":
     draw_graph(init_graph, show=True)
     # calculate_gate_ss(generate_ibm_graph(nodes_list, edges_list, use_barabasi=False))
     # _,msq,_= calculate_msq(generate_random_graph(10, 0.1, use_barabasi=False))
-    msq1, target_size = calculate_msq(init_graph, 1.0, show_status=False)
+    msq1, target_size = calculate_msq_avg_degree(init_graph, 1.0, show_status=False)
 
     for i in range(len(msq1)):
         draw_graph(msq1[i], node_color="pink", show=True)
