@@ -47,3 +47,5 @@ ipython_config.py
 
 # simulation results directory
 /simulation_results/*
+
+/graph_samples/*
