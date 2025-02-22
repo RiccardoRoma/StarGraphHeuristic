@@ -17,6 +17,7 @@ from typing import Union
 from tqdm import tqdm
 import copy
 import re
+from qiskit.converters import circuit_to_dag
 
 # properties for graph construction
 graph_str = "ibm" # ibm, reg_square_latt, random
@@ -204,8 +205,19 @@ def run_circuit_sampling(graph_dir: str,
         curr_circ, curr_graph = create_circuit(file_path, circuit_method)
 
         # consistency check
-        if curr_circ.num_qubits != n:
-            raise ValueError("Number of qubits in the circuit does not match graph size!")
+        if len(curr_graph.nodes) != n:
+            raise ValueError("Number of nodes in the graph {}, does not match extracted graph size {} from file {}!".format(len(curr_graph.nodes), n, file_path))
+        # if curr_circ.num_qubits != n:
+        #     dag = circuit_to_dag(curr_circ)
+        #     num_nonidle_qubits = len([qubit for qubit in curr_circ.qubits if qubit not in dag.idle_wires()])
+        #     if num_nonidle_qubits != n:
+        #         print("number of nodes {}".format(len(curr_graph.nodes)))
+        #         print(curr_circ.draw())
+        #         num_2qubit_gates = len(curr_circ.get_instructions("cx"))+len(curr_circ.get_instructions("cz"))
+        #         print("number of two-qubit gate {}".format(num_2qubit_gates))
+        #         mgo.draw_graph(curr_graph)
+        #         plt.show()
+        #         raise ValueError("Number of non-idle qubits in the circuit {}, does not match graph size {}!".format(num_nonidle_qubits, n))
         
         curr_foms = eval_circuit(curr_circ)
 
@@ -436,16 +448,17 @@ def plot_averaged_data_foms(num_qubits: list,
         plt.show()
 
 if __name__ == "__main__":
-    #circuit_method = "merge_parallel"
+    circuit_method = "merge_parallel"
     #circuit_method = "grow"
     # #graph_dir = "/Users/as56ohop/Documents/NAS_sync/PhD/code/ghz_state_generation_in_com_networks/ghz_generation_heuristic_alg/Saved_small_random_graphs/sample_circuits_test"
     # #graph_dir = os.path.join(os.getcwd(), "Saved_small_random_graphs/sample_circuits_test")
-    #graph_dir = os.path.join(os.getcwd(), "graph_samples/random_graph_endros_renyi_1/")
+    # graph_dir = os.path.join(os.getcwd(), "graph_samples/random_graph_endros_renyi_1/")
+    graph_dir = os.path.join(os.getcwd(), "graph_samples/layout_graph_ibm_brisbane_1/")
 # 
-    #out_dir = None
+    out_dir = None
     # out_dir = os.path.join(os.getcwd(), "simulation_results/sample_circuits/random_graphs_endros_renyi_p0.0/")
     # 
-    #run_circuit_sampling(graph_dir, circuit_method, out_dir=out_dir, overwrite_results=True)
+    run_circuit_sampling(graph_dir, circuit_method, out_dir=out_dir, overwrite_results=True)
 
     # result_dirs = [os.path.join(os.getcwd(), "simulation_results/sample_circuits/random_graphs_endros_renyi_p0.4/circuit_method_grow"),
     #                os.path.join(os.getcwd(), "simulation_results/sample_circuits/random_graphs_endros_renyi_p0.4/circuit_method_merge_parallel")]
@@ -464,10 +477,10 @@ if __name__ == "__main__":
 
     #create_data_subset(result_dir, output_dir, n=400)
 
-    output_dir = [os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_random_graph_endros_renyi_1_n57/circuit_method_grow"),
-                  os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_random_graph_endros_renyi_1_n153/circuit_method_grow"),
-                  os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_random_graph_endros_renyi_1_n272/circuit_method_grow"),
-                  os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_random_graph_endros_renyi_1_n400/circuit_method_grow")]
-
-    plot_all_datasets(output_dir, ["n=57", "n=153", "n=272", "n=400"], xdata_str="p_value", xlabel="p value", title="Random graph sampling evaluation", fname_pre="")
+    # output_dir = [os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_random_graph_endros_renyi_1_n57/circuit_method_grow"),
+    #               os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_random_graph_endros_renyi_1_n153/circuit_method_grow"),
+    #               os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_random_graph_endros_renyi_1_n272/circuit_method_grow"),
+    #               os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_random_graph_endros_renyi_1_n400/circuit_method_grow")]
+# 
+    # plot_all_datasets(output_dir, ["n=57", "n=153", "n=272", "n=400"], xdata_str="p_value", xlabel="p value", title="Random graph sampling evaluation", fname_pre="")
 
