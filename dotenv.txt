@@ -1,0 +1,4 @@
+TOKEN=<copy-your-ibm-token-here>
+HUB_open=ibm-q
+GROUP_open=open
+PROJECT_open=main
