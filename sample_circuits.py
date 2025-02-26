@@ -450,6 +450,7 @@ def plot_averaged_data_foms(num_qubits: list,
 if __name__ == "__main__":
     #circuit_method = "merge_parallel"
     #circuit_method = "grow"
+    #circuit_method = "merge_sequential"
     # #graph_dir = "/Users/as56ohop/Documents/NAS_sync/PhD/code/ghz_state_generation_in_com_networks/ghz_generation_heuristic_alg/Saved_small_random_graphs/sample_circuits_test"
     # #graph_dir = os.path.join(os.getcwd(), "Saved_small_random_graphs/sample_circuits_test")
     # graph_dir = os.path.join(os.getcwd(), "graph_samples/random_graph_endros_renyi_1/")
@@ -474,10 +475,10 @@ if __name__ == "__main__":
     #print(extract_parameters(filename))  # Output: (10, 3)
 
     #result_dir = os.path.join(os.getcwd(), "graph_samples/random_graph_endros_renyi_1/circuit_sampling_results/circuit_method_grow")
-    #result_dir = os.path.join(os.getcwd(), "graph_samples/layout_graph_ibm_brisbane_1/circuit_sampling_results/circuit_method_grow")
+    #result_dir = os.path.join(os.getcwd(), "graph_samples/layout_graph_rect_grid_1/circuit_sampling_results/circuit_method_merge_sequential")
 
     #output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_random_graph_endros_renyi_1_n400/circuit_method_grow")
-    #output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/circuit_method_grow")
+    #output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_rect_grid_1/circuit_method_merge_sequential")
 
     #create_data_subset(result_dir, output_dir)
 
@@ -486,8 +487,19 @@ if __name__ == "__main__":
     #               os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_random_graph_endros_renyi_1_n272/circuit_method_grow"),
     #               os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_random_graph_endros_renyi_1_n400/circuit_method_grow")]
     #plot_all_datasets(output_dir, ["n=57", "n=153", "n=272", "n=400"], xdata_str="p_value", xlabel="p value", title="Random graph sampling evaluation", fname_pre="")
+    # output_dir = [os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/circuit_method_grow"),
+    #               os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/circuit_method_merge_parallel"),
+    #               os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/circuit_method_merge_sequential")]
+    # plot_all_datasets(output_dir, ["state growing", "merge parallel binary, hd", "merge sequential, hd"], xdata_str="num_qubits", xlabel="number of qubits", title="Random subgraph sampling from ibm brisbane layout", fname_pre=os.path.join(os.getcwd(),"graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/circuit_sampling_eval_layout_graph_ibm_brisbane_1_old_merge_version"))
     output_dir = [os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/circuit_method_grow"),
                   os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/circuit_method_merge_parallel")]
-    plot_all_datasets(output_dir, ["state growing", "merge_parallel"], xdata_str="num_qubits", xlabel="number of qubits", title="Random layout graph sampling evaluation", fname_pre="")
+    plot_all_datasets(output_dir, ["state growing", "merge parallel binary, hd"], xdata_str="num_qubits", xlabel="number of qubits", title="Random subgraph sampling from ibm brisbane layout", fname_pre=os.path.join(os.getcwd(),"graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/circuit_sampling_eval_layout_graph_ibm_brisbane_1_old_merge_version_no_sequential"))
+    # output_dir = [os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_rect_grid_1/circuit_method_grow"),
+    #               os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_rect_grid_1/circuit_method_merge_parallel"),
+    #               os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_rect_grid_1/circuit_method_merge_sequential")]
+    #plot_all_datasets(output_dir, ["state growing", "merge parallel binary, hd", "merge sequential, hd"], xdata_str="num_qubits", xlabel="number of qubits", title="Random subgraph sampling from rectangular grid layout", fname_pre=os.path.join(os.getcwd(),"graph_samples_eval/circuit_sampling_layout_graph_rect_grid_1/circuit_sampling_eval_layout_graph_rect_grid_1_old_merge_version"))
+    # output_dir = [os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_rect_grid_1/circuit_method_grow"),
+    #               os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_rect_grid_1/circuit_method_merge_parallel")]
+    # plot_all_datasets(output_dir, ["state growing", "merge parallel binary, hd"], xdata_str="num_qubits", xlabel="number of qubits", title="Random subgraph sampling from rectangular grid layout", fname_pre=os.path.join(os.getcwd(),"graph_samples_eval/circuit_sampling_layout_graph_rect_grid_1/circuit_sampling_eval_layout_graph_rect_grid_1_old_merge_version_no_sequential"))
     
 
