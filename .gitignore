@@ -50,3 +50,5 @@ ipython_config.py
 
 # random files (added by siddhu)
 test_subgraph_func_sid.py
+
+/graph_samples/*
