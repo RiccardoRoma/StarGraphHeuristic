@@ -1,0 +1,5 @@
+circuit_depth: 235
+num_qubits: 392
+number_measurements: 0
+number_two_qubit_gates: 391
+p_value: 0.5

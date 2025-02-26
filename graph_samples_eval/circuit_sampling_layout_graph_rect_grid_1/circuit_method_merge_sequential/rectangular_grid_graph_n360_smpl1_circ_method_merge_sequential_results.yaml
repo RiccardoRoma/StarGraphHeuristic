@@ -1,0 +1,4 @@
+circuit_depth: 204
+num_qubits: 360
+number_measurements: 69
+number_two_qubit_gates: 428
