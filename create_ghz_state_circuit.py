@@ -116,6 +116,7 @@ def create_ghz_state_circuit_graph(pattern: MergePattern,
 
     cls_bit_cnt = 0 # counts how many measurements have been made
     for layer in range(len(pattern)):
+        ## To-Do: This has to be generalized for merge pairs of arbitrary size!
         for graph_pair in pattern.get_merge_pairs(layer):
             subgraph1 = graph_pair[0]
             subgraph2 = graph_pair[1]

@@ -147,7 +147,7 @@ def merge_ghz(circ: QuantumCircuit, C1: int, graph1: Graph, C2: int, graph2: Gra
         graph_new.remove_edge(C1, C2)
     
     return circ, graph_new, cls_bit_cnt
-
+## To-Do: This has to be generalized for merge pairs of arbitrary size!
 def merge_ghz_circ(circ: QuantumCircuit, C1: int, graph1: Graph, C2: int, graph2: Graph, cls_bit_cnt: int, reuse_meas_qubit: bool=True) -> Tuple[QuantumCircuit, int]:
     if is_single_qubit_graph(graph1):
         circ.cx(C2, C1)
