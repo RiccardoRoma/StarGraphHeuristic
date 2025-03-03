@@ -65,21 +65,20 @@ def generate_random_graph(n, p, use_barabasi, show_plot=True):
     return G
 
 def generate_graph(nodes_list, edges_list, use_barabasi):
+    # Create a graph G
+    G = nx.Graph()
     
-        # Create a graph G
-        G = nx.Graph()
-        
-        # Add nodes to the graph
-        G.add_nodes_from(nodes_list)
-        
-        # Add edges to the graph
-        G.add_edges_from(edges_list)
-        
-        # plt.figure()
-        # nx.draw(G, node_color='lightgreen', 
-        #         with_labels=True, 
-        #         node_size=500)
-        return G 
+    # Add nodes to the graph
+    G.add_nodes_from(nodes_list)
+    
+    # Add edges to the graph
+    G.add_edges_from(edges_list)
+    
+    # plt.figure()
+    # nx.draw(G, node_color='lightgreen', 
+    #         with_labels=True, 
+    #         node_size=500)
+    return G 
 
 
 def draw_graph(graph, **kwargs):
@@ -137,7 +136,8 @@ def calculate_msq(G, show_status: bool = True):
             if show_status:
                 print("I am here")
                 plt.figure(l + 100)
-                nx.draw(MG[l], node_color='lightblue', 
+                nx.draw(MG[l], 
+                        node_color='lightblue', 
                         with_labels=True, 
                         node_size=500)
             for node in MG[l].nodes():
@@ -145,7 +145,8 @@ def calculate_msq(G, show_status: bool = True):
                 SG[l + 1].add_node(node)
                 if show_status:
                     plt.figure(l + 150)
-                    nx.draw(SG[l + 1], node_color='lightpink', 
+                    nx.draw(SG[l + 1], 
+                            node_color='lightpink', 
                             with_labels=True, 
                             node_size=500)
                 l += 1
@@ -162,7 +163,8 @@ def calculate_msq(G, show_status: bool = True):
                 plt.figure(l+50)
                 # if l==0:
                 #     MS.append(SG[l].copy())
-                nx.draw(SG[l], node_color='lightpink', 
+                nx.draw(SG[l], 
+                        node_color='lightpink', 
                         with_labels=True, 
                         node_size=500)
             tn.extend(list(SG[l].nodes()))
@@ -370,7 +372,238 @@ def sequential_merge(G: nx.Graph, msq: list[nx.Graph], show_status: bool = False
     
     return Bt, msq
 
-def parallel_merge(G: nx.Graph, msq: list[nx.Graph], show_status: bool = False):
+
+def check_merge_possibility(subgraph1: nx.Graph, subgraph2: nx.Graph, G: nx.Graph, merged_edges: list[tuple[int]]) -> Union[tuple, None]:
+    """
+    Check if there is a direct edge connecting any node in subgraph1 to any node in subgraph2,
+    excluding edges that involve already-merged nodes.
+
+    Parameters:
+    subgraph1 (networkx.Graph): The first subgraph.
+    subgraph2 (networkx.Graph): The second subgraph.
+    G (networkx.Graph): The main graph from which the subgraphs are derived.
+    merged_edges (list): List of edges (as ordered pairs) already used for merging.
+
+    Returns:
+    tuple or None: A randomly chosen edge connecting the two subgraphs if one exists and satisfies the constraints; else None.
+    """
+    # Create a set of nodes already involved in merged edges
+    merged_nodes = set(node for edge in merged_edges for node in edge)
+
+    # Find all edges in G that connect nodes in subgraph1 to nodes in subgraph2
+    connecting_edges = [
+        edge
+        for edge in G.edges
+        if (edge[0] in subgraph1.nodes and edge[1] in subgraph2.nodes)
+        or (edge[1] in subgraph1.nodes and edge[0] in subgraph2.nodes)
+    ]
+
+    # Exclude edges involving any node in merged_nodes
+    valid_edges = [
+        edge
+        for edge in connecting_edges
+        if edge[0] not in merged_nodes and edge[1] not in merged_nodes
+    ]
+
+    # If valid connecting edges are found, randomly pick one
+    if valid_edges:
+        ## To-Do: choose edge based on error rate and for star states based on number of center shifts
+        return random.choice(valid_edges)
+    else:
+        return None
+
+
+
+def find_sink_and_longest_leaf(G: nx.DiGraph) -> tuple[int, tuple[int, int]]:
+    """Finding the sink node (node with out-degree 0 and in-degree > 0) and the longest leaf node in a directed graph.
+
+    Args:
+        G: A directed graph (nx.DiGraph).
+
+    Returns:
+        tuple: The sink node and the longest leaf node (with the longest distance from the sink node).
+    """
+    # Find the sink node
+    for node in G.nodes:
+        if G.out_degree(node) == 0 and G.in_degree(node) > 0:
+            sink_node = node
+            break
+    else:
+        return None, None  # No sink node found
+
+    # Reverse the graph to follow incoming edges
+    reversed_G = G.reverse()
+    
+    # Perform BFS to find the longest path from the sink node
+    visited = set()
+    queue = deque([(sink_node, 0)])  # (node, distance)
+    visited.add(sink_node)
+    
+    longest_leaf = None
+    max_distance = -1
+    
+    while queue:
+        node, distance = queue.popleft()
+        
+        # If the node is a leaf node and has the longest distance, update
+        if reversed_G.out_degree(node) == 0:
+            if distance > max_distance:
+                max_distance = distance
+                longest_leaf = node
+        
+        for neighbor in reversed_G.neighbors(node):
+            if neighbor not in visited:
+                visited.add(neighbor)
+                queue.append((neighbor, distance + 1))
+    
+    return sink_node, (longest_leaf, max_distance)
+
+def find_merging_tree(G: nx.Graph, msq: list[nx.Graph]) -> tuple[nx.DiGraph, list[nx.Graph]]:
+    """
+    Find merging stars and track the merging process using a directed graph (DiGraph).
+
+    Parameters:
+    G (networkx.Graph): The main graph to check merge possibilities.
+    msq (list): A list of subgraphs (stars) to merge.
+
+    Returns:
+    tuple: merging tree graph (DiGraph) and the updated list of subgraphs (msq).
+    """
+    # Initialize variables
+    msq_original = msq[:]  # Keep the original msq intact
+    merged_stars = []  # List to track merged stars
+    merged_edges = []  # List to track edges used for merging
+    merge_associations = []  # Track which edge merges which stars
+
+    # Initialize a directed graph (DiGraph)
+    D = nx.DiGraph()
+    D.add_nodes_from(range(len(msq_original)))  # Nodes are indices of msq elements
+
+    # Loop until the DiGraph is strongly connected
+    while not set(G.nodes) == set(msq[-1].nodes):        
+        for i, si in enumerate(msq):
+            if si in merged_stars:  # Skip the stars that are already merged
+                continue
+            for j, sj in enumerate(msq):
+                if i == j or sj in merged_stars:  # Skip self-checks and merged stars
+                    continue
+
+                edge = check_merge_possibility(si, sj, G, merged_edges)
+                if edge is not None:
+                    # Add edge to merged_edges and update associations
+                    merged_edges.append(edge)
+                    merge_associations.append((edge, si, sj, i, j))
+                    # if sp == 1:
+                    #     print("edge is ", edge, si.nodes(),sj.nodes(), i, j)
+
+
+                    # Add si and sj to merged_stars (ensure uniqueness)
+                    if si not in merged_stars:
+                        merged_stars.append(si)
+                    if sj not in merged_stars:
+                        merged_stars.append(sj)
+
+        # Initialize variables to check if it is new merge or not
+        edi = False
+        edj = False
+        
+
+        for edge, si, sj, i, j in merge_associations:
+            # print("edge is ", edge, i,j)
+            # Check if there are edges from i or j
+            edges_i = list(D.out_edges(i))  # Get outgoing edges of i
+            edges_j = list(D.out_edges(j))  # Get outgoing edges of j
+            
+            # Check if any edges exist for i
+            if edges_i:
+                connected_node = edges_i[0][1]  # Get the node connected to i (the destination of the edge)
+                edi = True
+            elif edges_j:
+                connected_node = edges_j[0][1]  # Get the node connected to j (the destination of the edge)
+                edj = True
+            else:
+                connected_node = None  # No edges from j
+            
+            # If no connection found, create a new node
+            if connected_node is None:
+                # Get the next node number by checking the current number of nodes in the graph
+                new_node = len(D.nodes)
+                D.add_node(new_node)  # Add the new node to the graph
+                
+                # Add directed edges from i and j to the new node
+                
+                D.add_edge(i, new_node, weight=edge)
+                D.add_edge(j, new_node, weight=edge)
+
+                if i < j:
+                    sk = mgo.merge_star_graphs(si, sj, edge, keep_center1=True, keep_center2=True)
+                else:
+                    sk = mgo.merge_star_graphs(sj, si, edge, keep_center1=True, keep_center2=True)
+                # Add the new merged star to msq
+                msq.append(sk)
+                
+            else:
+
+                if edi == True:
+                    if j != connected_node:
+                        D.add_edge(j, connected_node, weight=edge)
+
+                    sn = msq[connected_node]  # Get the subgraph at index connected_node
+
+                    if j < connected_node:
+                        sk = mgo.merge_star_graphs(sj, sn, edge, keep_center1=True, keep_center2=True)
+                    else:
+                        sk = mgo.merge_star_graphs(sn, sj, edge, keep_center1=True, keep_center2=True)
+                    msq[connected_node] = sk
+                    
+                elif edj == True:
+                    if i != connected_node:
+                        D.add_edge(i, connected_node, weight=edge)
+
+                    sn = msq[connected_node]  # Get the subgraph at index connected_node
+
+                    if i < connected_node:
+                        sk = mgo.merge_star_graphs(si, sn, edge, keep_center1=True, keep_center2=True)
+                    else:
+                        sk = mgo.merge_star_graphs(sn, si, edge, keep_center1=True, keep_center2=True)
+                    msq[connected_node] = sk
+
+        merged_edges.clear()
+        merge_associations.clear()
+        connected_node = None
+        edi = False
+        edj = False
+
+        
+        # for subgraph in msq:
+        #     print("msq stars are ",subgraph.nodes())
+
+        # for k in merge_associations:
+        #     print("mergee_element",k)
+
+        # for g in merged_stars:
+        #     print("merged stars are ", g.nodes())
+            
+        # draw_graph(D,node_color="pink")
+       
+
+    return D, msq
+
+
+def parallel_merge(G: nx.Graph, msq: list[nx.Graph], show_status: bool = False) -> tuple[nx.DiGraph, list[nx.Graph]]:
+    """Perform binary, parallel merging of stars in a graph.
+
+    Args:
+        G: Initial graph to merge stars from.
+        msq: List of subgraphs (stars) to merge.
+        show_status: Bool flag to show current status. Defaults to False.
+
+    Raises:
+        ValueError: If subgraph indices coincide.
+
+    Returns:
+        tuple: Binary tree graph (DiGraph) and the updated list of subgraphs (msq).
+    """
     # Create Binary tree graph Bt with nodes labeled 0, 1, ..., len(msq) - 1
     Bt = nx.DiGraph()
     Bt.add_nodes_from(range(len(msq)))
@@ -473,7 +706,7 @@ def get_nodes_by_layers(tree: nx.DiGraph) -> list[list[int]]:
     Root is at layer 0.
     """
     root = find_root(tree)  # Find the root node
-    layers = defaultdict(list)  # To store nodes by layer
+    layers = defaultdict(list)  # Init a dict with lists as valules to store nodes by layer
     queue = deque([(root, 0)])  # BFS queue with (node, depth)
 
     while queue:
@@ -508,11 +741,13 @@ class MergePattern:
         return cls(init_graph, msq, bt)
     
     @classmethod
-    def from_graph_parallel(cls, init_graph: nx.Graph):
+    def from_graph_parallel(cls, init_graph: nx.Graph, binary_merge: bool = True):
         _,msq,_ = calculate_msq(init_graph, show_status=False)
-        bt,_ = parallel_merge(init_graph,msq)
+        if binary_merge:
+            bt,_ = parallel_merge(init_graph,msq)
+        else:
+            bt,_ = find_merging_tree(init_graph, msq)
         return cls(init_graph, msq, bt)
-
 
 
     @property
@@ -593,6 +828,42 @@ class MergePattern:
 
         return subgraphs
 
+    def get_merge_sets(self, layer: int) -> list[tuple[list[nx.Graph], list[tuple[int, int]]]]:
+        """Creates a list of tuples containing the subgraphs that should be merged in the layer index and the merging edges.
+
+        Args:
+            layer: The layer index for which to retrieve the merge sets.
+
+        Raises:
+            ValueError: If the merging edge cannot be retrieved from the pattern graph.
+
+        Returns:
+            A list of tuples containing the subgraphs to merge and the merging edges
+        """
+        merge_sets = []
+        # list of all subgraphs
+        subgraphs = self._subgraphs
+        for idcs in self._merge_siblings_by_layer[layer]:
+            parent_idx = next(self._pattern_graph.successors(idcs[0]))
+            
+            merging_edge = self._pattern_graph[idcs[0]][parent_idx].get("weight", None)
+            if not merging_edge:
+                raise ValueError("Unable to retrieve merging edge at pattern graph indices ({}, {})!".format(idcs[0], parent_idx))
+            # follow convention that the subgraph with the smallest index comes first (relevant for merging order, i.e., for graph states which center is kept)
+            # if this convention is changed also the convention in find_merging_tree, parallel_merge and sequential merge function must be changed
+            curr_merge_set_graphs = [subgraphs[idx] for idx in sorted(idcs)]
+            curr_merge_edges = []
+            for idx in sorted(idcs):
+                curr_edge = self._pattern_graph[idx][parent_idx].get("weight", None)
+                if not curr_edge:
+                    raise ValueError("Unable to retrieve merging edge at pattern graph indices ({}, {})!".format(idx, parent_idx))
+                curr_merge_edges.append(curr_edge)
+            
+            merge_sets.append((curr_merge_set_graphs, curr_merge_edges))
+
+        return merge_sets
+
+    ## To-Do: Generalization is get_merge_sets. This version should be removed.
     def get_merge_pairs(self, layer: int) -> list[tuple[nx.Graph, nx.Graph, tuple[int, int]]]:
         """
         Returns a list of tuples containing the graphs that should be merged in the layer index and the merging edge
@@ -681,10 +952,10 @@ class MergePattern:
 if __name__ == "__main__":
     #main()
     # List of nodes
-    nodes_list = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12]
+    nodes_list = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
 
     # Edge list (each tuple represents an edge between two nodes)
-    edges_list = [(0, 4), (1, 6), (2, 3), (3, 7), (4, 9), (5, 6), (6, 8), (7, 9), (8, 9), (0, 10), (10,11),(11,12)]
+    edges_list = [(0, 1), (0, 4), (1, 6), (2, 3), (3, 7), (4, 9), (5, 6), (6, 8), (7, 9), (8, 9), (0, 10), (10,11),(11,12)]
     
     init_graph = generate_graph(nodes_list, edges_list, use_barabasi=False)
     draw_graph(init_graph, show=False)
@@ -712,6 +983,9 @@ if __name__ == "__main__":
     # Define MergePattern instance for sequential merge
     ptrn2 = MergePattern(init_graph, msq2, bt2)
 
+    # Define MergePattern instance for non-binary parallel merge
+    ptrn3 = MergePattern.from_graph_parallel(init_graph, binary_merge=False)
+
     # print all merging pairs
     print("merge pairs for parallel merge:")
     for layer in range(len(ptrn1)):
@@ -732,18 +1006,65 @@ if __name__ == "__main__":
             print(f"    graph {graph_pair_idcs[0]}: nodes={graph_pair[0].nodes}")
             print(f"    graph {graph_pair_idcs[1]}: nodes={graph_pair[1].nodes}")
             print(f"    merging edge {graph_pair[2]}")
+    print()
+    print("merge sets for parallel merge:")
+    for layer in range(len(ptrn3)):
+        curr_merge_set = ptrn3.get_merge_sets(layer)
+        curr_set = ptrn3._merge_siblings_by_layer[layer]
+        print(f"layer {layer}: merge sets {curr_set}")
+        for graph_set_idcs, graph_set in zip(curr_set,curr_merge_set):
+            if len(graph_set_idcs) != len(graph_set[0]):
+                raise ValueError("graph set indices and graph set do not have the same length!")
+            print(f"    merging set {graph_set_idcs}:")
+            for graph_idx, graph, edge in zip(graph_set_idcs, graph_set[0], graph_set[1]):
+                print(f"    graph {graph_idx}: nodes={graph.nodes()}, merging edge {edge}")
+            print()
 
     # draw the binary tree representing the merge pattern
     ptrn1.draw_pattern_graph(show_weights=True, show=False)
     ptrn2.draw_pattern_graph(show_weights=True, show=False)
+    ptrn3.draw_pattern_graph(show_weights=True, show=False)
 
     # draw all subgraphs 
     #ptrn1.draw_subgraphs(show=False)
     #ptrn2.draw_subgraphs()
 
+    # check if the nodes in the last subgraph is the same as the nodes in the initial graph
+    print("initial graph nodes: ", init_graph.nodes())
+    print("last subgraph nodes in parallel merge: ", sorted(ptrn1[-1][0].nodes()))
+    print("last subgraph nodes in sequential merge: ", sorted(ptrn2[-1][0].nodes()))
+    print("last subgraph nodes in non-bin. parallel merge: ", sorted(ptrn3[-1][0].nodes()))
+    print("initial graph nodes == last subgraph nodes in parallel merge: ", init_graph.nodes() == ptrn1[-1][0].nodes())
+    print("initial graph nodes == last subgraph nodes in sequential merge: ", init_graph.nodes() == ptrn2[-1][0].nodes())
+    print("initial graph nodes == last subgraph nodes in parallel merge: ", init_graph.nodes() == ptrn3[-1][0].nodes())
+
     ptrn1.draw_subgraphs(layer=-1, show=False)
-    ptrn2.draw_subgraphs(layer=-1)
+    ptrn2.draw_subgraphs(layer=-1, show=False)
+    ptrn3.draw_subgraphs(layer=-1)
 
-    
-
-
+    # print merging sets
+    print("merge sets for parallel merge:")
+    for layer in range(len(ptrn1)):
+        curr_merge_set = ptrn1.get_merge_sets(layer)
+        curr_set = ptrn1._merge_siblings_by_layer[layer]
+        print(f"layer {layer}: merge sets {curr_set}")
+        for graph_set_idcs, graph_set in zip(curr_set,curr_merge_set):
+            if len(graph_set_idcs) != len(graph_set[0]):
+                raise ValueError("graph set indices and graph set do not have the same length!")
+            print(f"    merging set {graph_set_idcs}:")
+            for graph_idx, graph, edge in zip(graph_set_idcs, graph_set[0], graph_set[1]):
+                print(f"    graph {graph_idx}: nodes={graph.nodes()}, merging edge {edge}")
+            print()
+    print()
+    print("merge sets for sequential merge:")
+    for layer in range(len(ptrn2)):
+        curr_merge_set = ptrn2.get_merge_sets(layer)
+        curr_set = ptrn2._merge_siblings_by_layer[layer]
+        print(f"layer {layer}: merge sets {curr_set}")
+        for graph_set_idcs, graph_set in zip(curr_set,curr_merge_set):
+            if len(graph_set_idcs) != len(graph_set[0]):
+                raise ValueError("graph set indices and graph set do not have the same length!")
+            print(f"    merging set {graph_set_idcs}:")
+            for graph_idx, graph, edge in zip(graph_set_idcs, graph_set[0], graph_set[1]):
+                print(f"    graph {graph_idx}: nodes={graph.nodes()}, merging edge {edge}")
+            print()
