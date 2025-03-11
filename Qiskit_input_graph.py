@@ -23,6 +23,7 @@ import csv
 import concurrent.futures 
 import time
 import modify_graph_objects as mgo
+import copy
 
 
 def generate_random_graph(n, p, use_barabasi, show_plot=True):
@@ -317,7 +318,8 @@ def calculate_msq(G, show_status: bool = True):
     return merging_edges_list, MSQ, sid_total_gates
 
 
-def sequential_merge(G: nx.Graph, msq: list[nx.Graph], show_status: bool = False):
+def sequential_merge(G: nx.Graph, msq_in: list[nx.Graph], show_status: bool = False):
+    msq = copy.deepcopy(msq_in) # Keep the original msq intact
     # Create Binary tree graph Bt with nodes labeled 0, 1, ..., len(msq) - 1
     Bt = nx.DiGraph()
     Bt.add_nodes_from(range(len(msq)))
@@ -458,7 +460,7 @@ def find_sink_and_longest_leaf(G: nx.DiGraph) -> tuple[int, tuple[int, int]]:
     
     return sink_node, (longest_leaf, max_distance)
 
-def find_merging_tree(G: nx.Graph, msq: list[nx.Graph]) -> tuple[nx.DiGraph, list[nx.Graph]]:
+def find_merging_tree(G: nx.Graph, msq_in: list[nx.Graph]) -> tuple[nx.DiGraph, list[nx.Graph]]:
     """
     Find merging stars and track the merging process using a directed graph (DiGraph).
 
@@ -470,14 +472,15 @@ def find_merging_tree(G: nx.Graph, msq: list[nx.Graph]) -> tuple[nx.DiGraph, lis
     tuple: merging tree graph (DiGraph) and the updated list of subgraphs (msq).
     """
     # Initialize variables
-    msq_original = msq[:]  # Keep the original msq intact
+    #msq_original = msq[:]  
+    msq = copy.deepcopy(msq_in) # Keep the original msq intact
     merged_stars = []  # List to track merged stars
     merged_edges = []  # List to track edges used for merging
     merge_associations = []  # Track which edge merges which stars
 
     # Initialize a directed graph (DiGraph)
     D = nx.DiGraph()
-    D.add_nodes_from(range(len(msq_original)))  # Nodes are indices of msq elements
+    D.add_nodes_from(range(len(msq_in)))  # Nodes are indices of msq elements
 
     # Loop until the DiGraph is strongly connected
     while not set(G.nodes) == set(msq[-1].nodes):        
@@ -590,7 +593,7 @@ def find_merging_tree(G: nx.Graph, msq: list[nx.Graph]) -> tuple[nx.DiGraph, lis
     return D, msq
 
 
-def parallel_merge(G: nx.Graph, msq: list[nx.Graph], show_status: bool = False) -> tuple[nx.DiGraph, list[nx.Graph]]:
+def parallel_merge(G: nx.Graph, msq_in: list[nx.Graph], show_status: bool = False) -> tuple[nx.DiGraph, list[nx.Graph]]:
     """Perform binary, parallel merging of stars in a graph.
 
     Args:
@@ -604,6 +607,7 @@ def parallel_merge(G: nx.Graph, msq: list[nx.Graph], show_status: bool = False) 
     Returns:
         tuple: Binary tree graph (DiGraph) and the updated list of subgraphs (msq).
     """
+    msq = copy.deepcopy(msq_in) # Keep the original msq intact
     # Create Binary tree graph Bt with nodes labeled 0, 1, ..., len(msq) - 1
     Bt = nx.DiGraph()
     Bt.add_nodes_from(range(len(msq)))
@@ -720,6 +724,24 @@ def get_nodes_by_layers(tree: nx.DiGraph) -> list[list[int]]:
     # Convert to a list of lists sorted by layer
     return [layers[layer] for layer in sorted(layers.keys())]
 
+def check_binary_tree(bt: nx.DiGraph) -> bool:
+    """This function checks a directed (inverted) tree graph if it's a binary inverted tree, i.e., if all nodes have at most two predecessors.
+
+    Args:
+        bt: Inverted tree graph to be checked.
+
+    Returns:
+        Bool flag that is True if the tree graph is a binary tree
+    """
+    is_binary = True
+    # binary inverted tree is a tree which has at most two children
+
+    for node in bt:
+        if len(list(bt.predecessors(node))) > 2:
+            is_binary = False
+
+    return is_binary
+
 class MergePattern:
     def __init__(self,
                  init_graph: nx.Graph,
@@ -728,6 +750,7 @@ class MergePattern:
         self._initial_graph = init_graph
         self._subgraphs = msq
         self._pattern_graph = bt
+        self._is_binary = check_binary_tree(bt)
         #self._construct_subgraphs_of_layers(msq, bt)
         # get nodes sorted according to the binary tree layers; reverse list because bt is a inverted binary tree (root at highest layer)
         self._merge_nodes_by_layer = get_nodes_by_layers(self._pattern_graph)
@@ -737,16 +760,16 @@ class MergePattern:
     @classmethod
     def from_graph_sequential(cls, init_graph: nx.Graph):
         _,msq,_ = calculate_msq(init_graph, show_status=False)
-        bt,_ = sequential_merge(init_graph,msq)
+        bt, msq = sequential_merge(init_graph,msq)
         return cls(init_graph, msq, bt)
     
     @classmethod
     def from_graph_parallel(cls, init_graph: nx.Graph, binary_merge: bool = True):
         _,msq,_ = calculate_msq(init_graph, show_status=False)
         if binary_merge:
-            bt,_ = parallel_merge(init_graph,msq)
+            bt, msq = parallel_merge(init_graph,msq)
         else:
-            bt,_ = find_merging_tree(init_graph, msq)
+            bt, msq = find_merging_tree(init_graph, msq)
         return cls(init_graph, msq, bt)
 
 
@@ -759,6 +782,7 @@ class MergePattern:
     @pattern_graph.setter
     def pattern_graph(self, bt: nx.DiGraph):
         self._pattern_graph = bt
+        self._is_binary = check_binary_tree(bt)
         self._merge_nodes_by_layer = get_nodes_by_layers(self._pattern_graph)
         self._construct_siblings_by_layer()
         #self._construct_subgraphs_of_layers(self.subgraphs, self._pattern_graph)
@@ -766,6 +790,10 @@ class MergePattern:
     @property
     def subgraphs(self):
         return self._subgraphs
+    
+    @property
+    def is_binary(self):
+        return self._is_binary
 
     def __getitem__(self, layer) -> list[nx.Graph]:
         return [self._subgraphs[i] for i in self._merge_nodes_by_layer[layer]]
@@ -846,9 +874,6 @@ class MergePattern:
         for idcs in self._merge_siblings_by_layer[layer]:
             parent_idx = next(self._pattern_graph.successors(idcs[0]))
             
-            merging_edge = self._pattern_graph[idcs[0]][parent_idx].get("weight", None)
-            if not merging_edge:
-                raise ValueError("Unable to retrieve merging edge at pattern graph indices ({}, {})!".format(idcs[0], parent_idx))
             # follow convention that the subgraph with the smallest index comes first (relevant for merging order, i.e., for graph states which center is kept)
             # if this convention is changed also the convention in find_merging_tree, parallel_merge and sequential merge function must be changed
             curr_merge_set_graphs = [subgraphs[idx] for idx in sorted(idcs)]
@@ -863,30 +888,26 @@ class MergePattern:
 
         return merge_sets
 
-    ## To-Do: Generalization is get_merge_sets. This version should be removed.
-    def get_merge_pairs(self, layer: int) -> list[tuple[nx.Graph, nx.Graph, tuple[int, int]]]:
+    def find_subgraph(self, subgraph: nx.Graph) -> Union[None, int]:
+        """Tries to find the given subgraph in the subgraph list of this MergePattern instance. 
+        It there for compares the nodes and edges of the input subgraph with each subgraph in the MergePattern instance.
+
+        Args:
+            subgraph: Subgraph that is searched for in the subgraph list of the MergePattern instance
+
+        Returns:
+            If the subgraph is found it returns the index of the matching subgraph in the subgraph list of the MergePattern instance. 
+            If the subgraph is not found it returns None.
         """
-        Returns a list of tuples containing the graphs that should be merged in the layer index and the merging edge
-        """
-        merge_pairs = []
-        # list of all subgraphs
-        subgraphs = self._subgraphs
-        for idx1, idx2 in self._merge_siblings_by_layer[layer]:
-            parent_idx = next(self._pattern_graph.successors(idx1))
-            idx_pair = (idx1, parent_idx) # successor implies that edge is of this form
-            
-            merging_edge = self._pattern_graph[idx1][parent_idx].get("weight", None)
-            if not merging_edge:
-                raise ValueError("Unable to retrieve merging edge at pattern graph indices ({}, {})!".format(idx1, parent_idx))
-            # follow convention that the subgraph with the smallest index comes first (relevant for merging order, i.e., for graph states which center is kept)
-            # if this convention is changed also the convention in parallel_merge and sequential merge function must be changed
-            if idx1 < idx2:
-                merge_pairs.append((subgraphs[idx1], subgraphs[idx2], merging_edge))
-            elif idx2 < idx1:
-                merge_pairs.append((subgraphs[idx2], subgraphs[idx1], merging_edge))
-            else:
-                raise ValueError("merge sibling indices coincide!")
-        return merge_pairs
+        graph_idx = None
+        for idx, graph in enumerate(self._subgraphs):
+            curr_nodes_match = nx.utils.nodes_equal(graph.nodes, subgraph.nodes)
+            curr_edges_match = nx.utils.edges_equal(graph.edges, subgraph.edges)
+            if curr_nodes_match and curr_edges_match:
+                graph_idx = idx
+                break
+        return graph_idx
+
     
     def draw_subgraphs(self, 
                        layer: Union[int, None] = None,
@@ -996,6 +1017,7 @@ if __name__ == "__main__":
             print(f"    graph {graph_pair_idcs[0]}: nodes={graph_pair[0].nodes}")
             print(f"    graph {graph_pair_idcs[1]}: nodes={graph_pair[1].nodes}")
             print(f"    merging edge {graph_pair[2]}")
+    print(f"merge tree is binary {ptrn1.is_binary}")
     print()
     print("merge pairs for sequential merge:")
     for layer in range(len(ptrn2)):
@@ -1006,6 +1028,7 @@ if __name__ == "__main__":
             print(f"    graph {graph_pair_idcs[0]}: nodes={graph_pair[0].nodes}")
             print(f"    graph {graph_pair_idcs[1]}: nodes={graph_pair[1].nodes}")
             print(f"    merging edge {graph_pair[2]}")
+    print(f"merge tree is binary {ptrn2.is_binary}")
     print()
     print("merge sets for parallel merge:")
     for layer in range(len(ptrn3)):
@@ -1019,6 +1042,7 @@ if __name__ == "__main__":
             for graph_idx, graph, edge in zip(graph_set_idcs, graph_set[0], graph_set[1]):
                 print(f"    graph {graph_idx}: nodes={graph.nodes()}, merging edge {edge}")
             print()
+    print(f"merge tree is binary {ptrn3.is_binary}")
 
     # draw the binary tree representing the merge pattern
     ptrn1.draw_pattern_graph(show_weights=True, show=False)
