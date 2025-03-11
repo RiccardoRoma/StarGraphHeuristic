@@ -4,14 +4,15 @@ use_premium_access: false
 run_locally: true
 generate_star_states: false
 parallel_merge: true
+binary_parallel: true
 fidelity_witness: simple
-subgraph_size: 10
+subgraph_size: 13
 coupling_map_str: "ibm_brisbane"
 coupling_map_id: 1
 fname_coupling_map: "ibm_brisbane_cm.pickle"
-fname_noise_model: "ibm_brisbane_nm.pickle"
-native_basis_gates_str: "ibm_brisbane"
-noise_model_id: 1
+fname_noise_model: "ibm_brisbane_nm_simplified.pickle"
+native_basis_gates_str: ""
+noise_model_id: 2
 noise_model_str: "ibm_brisbane"
 estimator_calibration:
   default_shots: 4096

@@ -4,16 +4,16 @@ use_premium_access: false
 run_locally: true
 generate_star_states: false
 parallel_merge: true
-binary_parallel: true
+binary_parallel: false
 fidelity_witness: simple
-subgraph_size: 10
-coupling_map_str: "ibm_brisbane"
-coupling_map_id: 1
-fname_coupling_map: "ibm_brisbane_cm.pickle"
-fname_noise_model: "ibm_brisbane_nm.pickle"
-native_basis_gates_str: "ibm_brisbane"
-noise_model_id: 1
-noise_model_str: "ibm_brisbane"
+subgraph_size: null
+coupling_map_str: "random_graph"
+coupling_map_id: -1
+fname_coupling_map: "/Users/as56ohop/Documents/NAS_sync/PhD/code/ghz_state_generation_in_com_networks/ghz_generation_heuristic_alg/Saved_small_random_graphs/random_graph_n10_p0.1_erdos_renyi_copy_1.pkl"
+fname_noise_model: ""
+native_basis_gates_str: "fake_fractional"
+noise_model_id: 0
+noise_model_str: ""
 estimator_calibration:
   default_shots: 4096
   environment_options:

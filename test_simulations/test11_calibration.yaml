@@ -4,6 +4,7 @@ use_premium_access: false
 run_locally: true
 generate_star_states: true
 parallel_merge: true
+binary_parallel: true
 fidelity_witness: simple
 subgraph_size: null
 coupling_map_str: "random_graph"

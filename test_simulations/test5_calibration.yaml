@@ -4,6 +4,7 @@ use_premium_access: false
 run_locally: true
 generate_star_states: false
 parallel_merge: false
+binary_parallel: false
 fidelity_witness: simple
 subgraph_size: 10
 coupling_map_str: "ibm_brisbane"
