@@ -102,13 +102,21 @@ def compute_scaling_factor(G, target):
         return 0.0  # Avoid division by zero
 
     scaling_factor = target / avg_degree
-    return (scaling_factor, 1.0)
+    return scaling_factor
 
 
-def calculate_msq_avg_degree(G, scaling_factor: float = 1.0, show_status: bool = True):
-    """
-    Calculates the gates using the SS method on the given graph G.
+def calculate_msq_avg_degree(G, scaling_factor: float = 1.0, show_status: bool = True) -> tuple[list[nx.Graph], int]:
+    """Calculates the to-be-merged star subgraphs using the SS method on the given graph G.
     Modified to pick stars of (roughly) consistent size based on the average degree.
+    The star graph size relates to the degree of the center node.
+
+    Args:
+        G: initial Graph
+        scaling_factor: Gives the percentage of the to-achieve subgraph center node degree in relation to the average degree in the initial graph. Defaults to 1.0, which means the center node degree should be equal to the average degree.
+        show_status: Bool flag to show intermediate plots of the function. Defaults to True.
+
+    Returns:
+        list of star subgraphs that should be merged, target center node degree of the star subgraphs
     """
 
     Picked_Stars = []
@@ -219,10 +227,13 @@ if __name__ == "__main__":
     ]
     init_graph = generate_random_graph(20, 0.2, use_barabasi=False)
     # init_graph = generate_graph(nodes_list, edges_list, use_barabasi=False)
-    draw_graph(init_graph, show=True)
+    draw_graph(init_graph, show=False)
     # calculate_gate_ss(generate_ibm_graph(nodes_list, edges_list, use_barabasi=False))
     # _,msq,_= calculate_msq(generate_random_graph(10, 0.1, use_barabasi=False))
     msq1, target_size = calculate_msq_avg_degree(init_graph, 1.0, show_status=False)
 
     for i in range(len(msq1)):
-        draw_graph(msq1[i], node_color="pink", show=True)
+        show_plots = False
+        if i == len(msq1)-1:
+            show_plots = True
+        draw_graph(msq1[i], node_color="pink", show=show_plots)
