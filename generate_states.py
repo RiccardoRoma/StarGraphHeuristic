@@ -73,23 +73,25 @@ def generate_ghz_state(G: Graph, circ: QuantumCircuit, state_size: Union[int, No
     # set required size of the final ghz state if unset
     if state_size is None:
         state_size = len(G)
-
-    max_degree_node = mgo.get_graph_center(G) # get the node with the highest degree in the initial graph
-
-    # Perform a BFS for the ghz state generation until the required size is reached
-    considered_nodes = [max_degree_node]
-    circ.h(max_degree_node)
-    while len(considered_nodes) < state_size:
-        for n0 in considered_nodes:
-            if len(considered_nodes) > state_size:
-                break
-            for n1 in G.neighbors(n0):
-                if n1 not in considered_nodes:
-                    if len(considered_nodes) > state_size:
-                        break
-                    else:
-                        circ.cx(n0, n1)
-                        considered_nodes.append(n1)
+    
+    # check if G is not a trivial case
+    if state_size > 1:
+        max_degree_node = mgo.get_graph_center(G) # get the node with the highest degree in the initial graph
+    
+        # Perform a BFS for the ghz state generation until the required size is reached
+        considered_nodes = [max_degree_node]
+        circ.h(max_degree_node)
+        while len(considered_nodes) < state_size:
+            for n0 in considered_nodes:
+                if len(considered_nodes) > state_size:
+                    break
+                for n1 in G.neighbors(n0):
+                    if n1 not in considered_nodes:
+                        if len(considered_nodes) > state_size:
+                            break
+                        else:
+                            circ.cx(n0, n1)
+                            considered_nodes.append(n1)
 
     return circ
 
