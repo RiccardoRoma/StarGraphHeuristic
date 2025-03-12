@@ -88,6 +88,7 @@ use_premium_access = cal_dict["use_premium_access"]
 generate_star_states = cal_dict["generate_star_states"] # flag for ghz generation (False) or star graphs (True)
 parallel_merge = cal_dict["parallel_merge"] # flag for using parallel merging
 binary_parallel = cal_dict["binary_parallel"] # flag for using binary parallel merging or full parallel merging
+substate_size = cal_dict["substate_size"] # target size of each substate
 fidelity_witness = cal_dict["fidelity_witness"]
 backend_str = cal_dict["backend_str"]
 noise_model_id = cal_dict["noise_model_id"]
@@ -155,11 +156,11 @@ pass_manager = utils.get_passmanager(backend, pm_cal)
 # create the circuit to generate GHZ state
 #curr_circ, curr_init_graph, curr_star_graph = cgsc.create_ghz_state_circuit_graph(graph, backend.num_qubits, star=generate_star_states)
 if parallel_merge:
-    merge_pattern = MergePattern.from_graph_parallel(graph, binary_merge=binary_parallel)
+    merge_pattern = MergePattern.from_graph_parallel(graph, binary_merge=binary_parallel, substate_size=substate_size)
 else:
     if not binary_parallel:
         print("Warning: Used sequential merging but set flag for non-binary parallel merging! This flag is not used for sequential merging")
-    merge_pattern = MergePattern.from_graph_sequential(graph)
+    merge_pattern = MergePattern.from_graph_sequential(graph, substate_size=substate_size)
 
 curr_circ, curr_init_graph, curr_star_graph = cgsc.create_ghz_state_circuit_graph(merge_pattern, backend.num_qubits, star=generate_star_states)
 #curr_circ, curr_init_graph = cgsc.create_ghz_state_circuit_debug(graph, backend.num_qubits)
