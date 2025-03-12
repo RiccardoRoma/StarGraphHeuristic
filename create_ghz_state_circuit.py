@@ -5,7 +5,7 @@ from qiskit.transpiler.passes import RemoveBarriers
 import copy
 import pickle
 import shift_center
-import generate_star_states
+import generate_states
 import merge_graphs
 from Qiskit_input_graph import MergePattern, draw_graph, calculate_msq, generate_graph, parallel_merge, sequential_merge, find_merging_tree, generate_random_graph
 import networkx as nx
@@ -80,21 +80,7 @@ def create_ghz_state_circuit_grow(graph_orig: Graph,
     if state_size is None:
         state_size = len(init_graph)
 
-    max_degree_node = mgo.get_graph_center(init_graph)
-
-    considered_nodes = [max_degree_node]
-    circ.h(max_degree_node)
-    while len(considered_nodes) < state_size:
-        for n0 in considered_nodes:
-            if len(considered_nodes) > state_size:
-                break
-            for n1 in init_graph.neighbors(n0):
-                if n1 not in considered_nodes:
-                    if len(considered_nodes) > state_size:
-                        break
-                    else:
-                        circ.cx(n0, n1)
-                        considered_nodes.append(n1)
+    circ = generate_states.generate_ghz_state(init_graph, circ, state_size=state_size)
 
     return circ, graph_orig
 
@@ -118,9 +104,9 @@ def create_ghz_state_circuit_graph(pattern: MergePattern,
     # construct initial subgraphs
     for graph in pattern.get_initial_subgraphs():
         if star:
-            circ_shift_merge = generate_star_states.generate_star_state(graph, circ_shift_merge)
+            circ_shift_merge = generate_states.generate_graph_state(graph, circ_shift_merge)
         else:
-            circ_shift_merge = generate_star_states.generate_ghz_state(graph, circ_shift_merge)
+            circ_shift_merge = generate_states.generate_ghz_state(graph, circ_shift_merge)
 
     circ_shift_merge.barrier()
 
