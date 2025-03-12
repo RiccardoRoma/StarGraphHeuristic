@@ -1,5 +1,5 @@
 import shift_center
-import generate_star_states
+import generate_states
 from Qiskit_input_graph import draw_graph, calculate_msq
 import pickle
 import networkx as nx
@@ -44,7 +44,7 @@ print("Figure {}: subgraph 1 original".format(fig_cnt))
 draw_graph(curr_graph, show=False)
 fig_cnt += 1
 
-curr_circ = generate_star_states.generate_star_state(curr_graph, curr_circ)
+curr_circ = generate_states.generate_graph_state(curr_graph, curr_circ)
 
 print("Figure {}: circuit to generate subgraph 1 original".format(fig_cnt))
 print(curr_circ.draw(output="mpl"))
@@ -61,7 +61,7 @@ draw_graph(curr_graph, show=False)
 fig_cnt += 1
 
 curr_circ_ref = c.copy()
-curr_circ_ref = generate_star_states.generate_star_state(curr_graph, curr_circ_ref)
+curr_circ_ref = generate_states.generate_graph_state(curr_graph, curr_circ_ref)
 
 print("Figure {}: reference circuit for subgraph 1 center shifted".format(fig_cnt))
 print(curr_circ_ref.draw(output="mpl"))
