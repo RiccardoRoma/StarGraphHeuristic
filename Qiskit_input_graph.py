@@ -317,6 +317,128 @@ def calculate_msq(G, show_status: bool = True):
     
     return merging_edges_list, MSQ, sid_total_gates
 
+def compute_scaling_factor(G, target):
+    """
+    Compute the scaling factor given a graph G and a target degree.
+
+    Parameters:
+        G (networkx.Graph): The input graph.
+        target (int): The desired target degree.
+
+    Returns:
+        float: The computed scaling factor.
+    """
+    if not isinstance(target, int):
+        raise ValueError(f"Target center node degree is not an integer: {target}!")
+    if target < 0:
+        raise ValueError(f"Target center node degree must be a positive integer: {target}")
+    
+    avg_degree = sum(dict(G.degree()).values()) / G.number_of_nodes()
+    if avg_degree == 0:
+        return 0.0  # Avoid division by zero
+
+    scaling_factor = target / avg_degree
+    return scaling_factor
+
+
+def calculate_msq_avg_degree(G, scaling_factor: float = 1.0, show_status: bool = True) -> tuple[list[nx.Graph], int]:
+    """Calculates the to-be-merged star subgraphs using the SS method on the given graph G.
+    Modified to pick stars of (roughly) consistent size based on the average degree.
+    The star graph size relates to the degree of the center node.
+
+    Args:
+        G: initial Graph
+        scaling_factor: Gives the percentage of the to-achieve subgraph center node degree in relation to the average degree in the initial graph. Defaults to 1.0, which means the center node degree should be equal to the average degree.
+        show_status: Bool flag to show intermediate plots of the function. Defaults to True.
+
+    Returns:
+        list of star subgraphs that should be merged, target center node degree of the star subgraphs
+    """
+
+    Picked_Stars = []
+    MSQ = []
+    MG = {}
+    SG = {}
+    tn = []
+    edu = []
+    l = 0
+
+    # Compute target degree based on the average degree of the original graph
+    avg_degree = sum(dict(G.degree()).values()) / G.number_of_nodes()
+    # scaling_factor = 1.0  # adjust this factor as needed
+    target = round(scaling_factor * avg_degree)
+
+    # target = round(sum(dict(G.degree()).values()) / G.number_of_nodes())
+
+    MG[0] = G.copy()
+    an = list(MG[0].nodes())
+
+    while MG[l].number_of_nodes() > 0:
+        if nx.is_empty(MG[l]) == True:
+            if show_status:
+                print("I am here")
+                plt.figure(l + 100)
+                nx.draw(MG[l], node_color="lightblue", with_labels=True, node_size=500)
+            for node in MG[l].nodes():
+                SG[l + 1] = nx.Graph()
+                SG[l + 1].add_node(node)
+                if show_status:
+                    plt.figure(l + 150)
+                    nx.draw(
+                        SG[l + 1],
+                        node_color="lightpink",
+                        with_labels=True,
+                        node_size=500,
+                    )
+                l += 1
+            break
+        else:
+            # Instead of always picking the highest degree node,
+            # choose a node whose degree is as close as possible to the target.
+            degree_dict = dict(MG[l].degree())
+            # Prefer nodes with degree >= target.
+            candidates = [
+                (node, deg) for node, deg in degree_dict.items() if deg >= target
+            ]
+            if candidates:
+                chosen = min(candidates, key=lambda x: x[1] - target)
+            else:
+                # If no candidate meets the target, choose one closest to target by absolute difference.
+                chosen = min(degree_dict.items(), key=lambda x: abs(x[1] - target))
+            center = chosen[0]
+            neighbors = list(MG[l].neighbors(center))
+            # To enforce consistency in star sizes, if the node has more neighbors than the target,
+            # select only a random subset of 'target' neighbors.
+            if len(neighbors) > target:
+                chosen_neighbors = random.sample(neighbors, target)
+            else:
+                chosen_neighbors = neighbors
+
+            # Build the star subgraph from the center to the selected neighbors.
+            edges = [(center, nb) for nb in chosen_neighbors]
+            SG[l] = nx.Graph()
+            SG[l].add_edges_from(edges)
+
+            MG[l + 1] = MG[l].copy()
+            MG[l + 1].remove_nodes_from(SG[l].nodes())
+            if show_status:
+                plt.figure(l + 50)
+                nx.draw(SG[l], node_color="lightpink", with_labels=True, node_size=500)
+            tn.extend(list(SG[l].nodes()))
+            edu.extend(list(SG[l].edges()))
+
+            check = all(item in tn for item in an)
+            if check is True:
+                break
+            else:
+                l += 1
+
+    for i in SG.keys():
+        Picked_Stars = list(SG.values())
+    MSQ = Picked_Stars.copy()
+
+    return MSQ, target
+
 
 def sequential_merge(G: nx.Graph, msq_in: list[nx.Graph], show_status: bool = False):
     msq = copy.deepcopy(msq_in) # Keep the original msq intact
@@ -758,14 +880,27 @@ class MergePattern:
         self._construct_siblings_by_layer()
 
     @classmethod
-    def from_graph_sequential(cls, init_graph: nx.Graph):
-        _,msq,_ = calculate_msq(init_graph, show_status=False)
+    def from_graph_sequential(cls, init_graph: nx.Graph, substate_size: Union[int, None] = None):
+        if substate_size is None:
+            # if no substate_size is given, choose the highest degree star graphs
+            _,msq,_ = calculate_msq(init_graph, show_status=False)
+        else:
+            target_center_degree = substate_size - 1 # subgraphs are star graphs so the size is center node degree + 1
+            scaling_factor = compute_scaling_factor(init_graph, target_center_degree)
+            msq, _ = calculate_msq_avg_degree(init_graph, scaling_factor)
         bt, msq = sequential_merge(init_graph,msq)
         return cls(init_graph, msq, bt)
     
     @classmethod
-    def from_graph_parallel(cls, init_graph: nx.Graph, binary_merge: bool = True):
-        _,msq,_ = calculate_msq(init_graph, show_status=False)
+    def from_graph_parallel(cls, init_graph: nx.Graph, binary_merge: bool = True, substate_size: Union[int, None] = None):
+        if substate_size is None:
+            # if no substate_size is given, choose the highest degree star graphs
+            _,msq,_ = calculate_msq(init_graph, show_status=False)
+        else:
+            target_center_degree = substate_size - 1 # subgraphs are star graphs so the size is center node degree + 1
+            scaling_factor = compute_scaling_factor(init_graph, target_center_degree)
+            msq, _ = calculate_msq_avg_degree(init_graph, scaling_factor)
+
         if binary_merge:
             bt, msq = parallel_merge(init_graph,msq)
         else:
