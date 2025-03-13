@@ -85,6 +85,26 @@ def random_connected_subgraph(G: Graph,
 
     return G.subgraph(visited).copy()
 
+def random_connected_subgraph_2(G: Graph, k: int) -> Graph:
+    if k == 0:
+        return G.subgraph([]).copy()
+    
+    visited = {random.choice(list(G.nodes))}
+    queue = [next(iter(visited))]
+    
+    while len(visited) < k and queue:
+        # Randomly select next node from frontier
+        current = queue.pop(random.randrange(len(queue)))
+        
+        # Process neighbors in random order
+        for neighbor in random.sample(list(G.neighbors(current)), len(list(G.neighbors(current)))):
+            if len(visited) == k: break
+            if neighbor not in visited:
+                visited.add(neighbor)
+                queue.append(neighbor)
+    
+    return G.subgraph(visited).copy()
+
 def create_samples_ibm_layout_graph(output_dir: str,
                                     graph_sizes: list[int],
                                     backend_str: str,
