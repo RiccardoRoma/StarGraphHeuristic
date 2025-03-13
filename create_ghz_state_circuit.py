@@ -7,7 +7,7 @@ import pickle
 import shift_center
 import generate_states
 import merge_graphs
-from Qiskit_input_graph import MergePattern, draw_graph, calculate_msq, generate_graph, parallel_merge, sequential_merge, find_merging_tree, generate_random_graph
+from Qiskit_input_graph import MergePattern, draw_graph, calculate_msq, generate_graph, parallel_merge, sequential_merge, find_merging_tree, generate_random_graph, calculate_msq_avg_degree
 import networkx as nx
 from networkx import Graph
 import modify_graph_objects as mgo
@@ -269,3 +269,28 @@ if __name__ == "__main__":
     ptrn3.draw_pattern_graph(show_weights=True, show=False)
 
     plt.show()
+
+    # Test handeling fully connected graphs
+    # edges = [(0,1), (0,2), (0, 3), (1,2), (1,3), (2,3)]
+    # graph = nx.Graph(edges)
+    # mgo.draw_graph(graph, show=False)
+# 
+    # _, msq, _ = calculate_msq(graph, show_status=False)
+    # #msq, _ = calculate_msq_avg_degree(graph, 1.0, show_status=False)
+    # #bt, msq = sequential_merge(graph, msq)
+    # #bt, msq = parallel_merge(graph, msq)
+    # bt, msq = find_merging_tree(graph, msq)
+# 
+    # print(f"length of msq: {len(msq)}")
+    # if len(msq) >= 1:
+    #     mgo.draw_graph(msq[0], title="first element of msq", show = False)
+# 
+    # mgo.draw_graph(bt, layout="graphviz_dot", show=False)
+# 
+    # pattern = MergePattern(graph, msq, bt)
+# 
+    # circ, init_graph, final_subgraph = create_ghz_state_circuit_graph(pattern, 4, star=False)
+    # print(circ.draw())
+    # mgo.draw_graph(init_graph, show=False)
+    # mgo.draw_graph(final_subgraph, show=True)
+    
