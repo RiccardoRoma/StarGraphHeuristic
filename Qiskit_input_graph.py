@@ -898,31 +898,63 @@ class MergePattern:
         self._construct_siblings_by_layer()
 
     @classmethod
-    def from_graph_sequential(cls, init_graph: nx.Graph, substate_size: Union[int, None] = None):
-        if substate_size is None:
+    def create_msq_and_merge_tree(cls, init_graph: nx.Graph, substate_size_fac: Union[float, None] = None, substate_size: Union[int, None] = None, parallel: bool = True, binary_merge: bool = False) -> tuple[list[nx.Graph], nx.DiGraph, float, int]:
+        """Creates the subgraph list msq and the corresponding merging tree for creating a GHZ state from the given initial graph.
+
+        Args:
+            init_graph: Initial graph to create a GHZ state from
+            substate_size_fac: Percentage factor between the target center node degree of each subgraph (star graphs) and the average degree in the initial graph. If this is not None this factor is used for the subgraph creation. Defaults to None, which means the algorithm picks always the highest degree node if substate_size is also None.
+            substate_size: Target size of each initial subgraph that is created in msq list. Defaults to None.
+            parallel: Bool flag for parallel merging. Defaults to True. If false then the merging is done sequentially.
+            binary_merge: Bool flag if parallel merge should be performed according to a binary merge tree or a non-binary merge tree. Defaults to False. Note that if parallel flag is False, the binary merge flag has to be true because sequential merge is always binary.
+
+        Raises:
+            ValueError: If substate_size_fac and substate_size are both not None. Only one should be given or both should be None.
+            ValueError: If sequential merging is chosen (parallel flag is False) and binary_merge flag is False. Sequential merge is always binary!
+
+        Returns:
+            subgraph list msq, merge tree, substate size factor, substate size
+        """
+        if substate_size_fac:
+            if substate_size:
+                raise ValueError("Substate size and substate size factor are both not None. Use just one of them and set the other to None.")
+        else:
+            if substate_size:
+                # if substate size is given calculate the corresponding scaling factor
+                target_degree = substate_size - 1 # for star graphs the center node degree is the size - 1
+                substate_size_fac = compute_scaling_factor(init_graph, target_degree)
+
+        if substate_size_fac is None:
             # if no substate_size is given, choose the highest degree star graphs
             _,msq,_ = calculate_msq(init_graph, show_status=False)
+            substate_size = None
         else:
-            target_center_degree = substate_size - 1 # subgraphs are star graphs so the size is center node degree + 1
-            scaling_factor = compute_scaling_factor(init_graph, target_center_degree)
-            msq, _ = calculate_msq_avg_degree(init_graph, scaling_factor, show_status=False)
-        bt, msq = sequential_merge(init_graph,msq)
+            # target_center_degree = substate_size - 1 # subgraphs are star graphs so the size is center node degree + 1
+            # scaling_factor = compute_scaling_factor(init_graph, target_center_degree)
+            msq, target_degree = calculate_msq_avg_degree(init_graph, scaling_factor=substate_size_fac, show_status=False)
+            substate_size = target_degree + 1 # target degree of star graph center is size - 1!
+
+        if not parallel and not binary_merge:
+            raise ValueError("If sequential merging is chosen, the binary merge flag must be true!")
+        
+        if parallel:
+            if binary_merge:
+                bt, msq = parallel_merge(init_graph, msq)
+            else:
+                bt, msq = find_merging_tree(init_graph, msq)
+        else:
+            bt, msq = sequential_merge(init_graph,msq)
+
+        return msq, bt, substate_size_fac, substate_size
+
+    @classmethod
+    def from_graph_sequential(cls, init_graph: nx.Graph, substate_size_fac: Union[float, None] = None):
+        msq, bt, _, _ = cls.create_msq_and_merge_tree(init_graph, substate_size_fac=substate_size_fac, parallel=False, binary_merge=True)
         return cls(init_graph, msq, bt)
     
     @classmethod
-    def from_graph_parallel(cls, init_graph: nx.Graph, binary_merge: bool = True, substate_size: Union[int, None] = None):
-        if substate_size is None:
-            # if no substate_size is given, choose the highest degree star graphs
-            _,msq,_ = calculate_msq(init_graph, show_status=False)
-        else:
-            target_center_degree = substate_size - 1 # subgraphs are star graphs so the size is center node degree + 1
-            scaling_factor = compute_scaling_factor(init_graph, target_center_degree)
-            msq, _ = calculate_msq_avg_degree(init_graph, scaling_factor, show_status=False)
-
-        if binary_merge:
-            bt, msq = parallel_merge(init_graph,msq)
-        else:
-            bt, msq = find_merging_tree(init_graph, msq)
+    def from_graph_parallel(cls, init_graph: nx.Graph, binary_merge: bool = True, substate_size_fac: Union[float, None] = None):
+        msq, bt, _, _ = cls.create_msq_and_merge_tree(init_graph, substate_size_fac=substate_size_fac, parallel=True, binary_merge=binary_merge)
         return cls(init_graph, msq, bt)
 
 

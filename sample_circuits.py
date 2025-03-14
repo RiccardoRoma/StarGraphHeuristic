@@ -32,15 +32,17 @@ import traceback as tb
 
 def create_circuit(graph_file: str,
                    method: str="grow",
+                   substate_size_fac: Union[float, None] = None,
                    substate_size: Union[int, None] = None,
                    star_states: bool = False,
-                   binary_merge: bool = False) -> tuple[QuantumCircuit, Graph]:
+                   binary_merge: bool = False) -> tuple[QuantumCircuit, Graph, float, int]:
     """Create a circuit from a given layout graph. The circuit is created using the specified method.
     The valid methods are "grow", "merge_sequential", and "merge_parallel".
 
     Args:
         graph_file: Path to the layout graph file.
         method: Identifier string for the specific method that should be used. Defaults to "grow".
+        substate_size_fac: Percentage factor between the target center node degree of each subgraph (star graphs) and the average degree in the initial graph. If this is not None this factor is used for the subgraph creation. Defaults to None, which means the algorithm picks always the highest degree node if substate_size is also None. This argument is only used for methods = "merge_sequential", "merge_parallel"
         substate_size: Target size of the to-be-merged substates. Defaults to None which means to don't use a similar target size for all substates. This argument is only used for methods = "merge_sequential", "merge_parallel"
         star_states: Bool flag to work with star graph states for merging. Defaults to False, which means to work directly with GHZ states. This argument is only used for methods = "merge_sequential", "merge_parallel"
         binary_merge: bool flag to use a binary merging tree or a non-binary merging tree. Defaults to False, which means to use a non-binary merging tree. This argument is only used for method = "merge_parallel"
@@ -50,7 +52,7 @@ def create_circuit(graph_file: str,
         ValueError: If an unknown circuit generation method is specified.
 
     Returns:
-        tuple[QuantumCircuit, Graph]: The generated quantum circuit and the corresponding layout graph.
+        tuple[QuantumCircuit, Graph, float, int]: The generated quantum circuit, the corresponding layout graph, substate size factor and substate size (used for merging and none for growing).
     """
     # load/generate layout graph
     if not os.path.isfile(graph_file):
@@ -64,19 +66,23 @@ def create_circuit(graph_file: str,
         # create circuit from layout graph
         if method=="grow":
             circ, _ = cgsc.create_ghz_state_circuit_grow(graph, max(list(graph))+1)
+            curr_substate_size = None
+            curr_substate_size_fac = None
         elif method == "merge_sequential":
-            merge_pattern =MergePattern.from_graph_sequential(graph, substate_size=substate_size)
+            msq, bt, curr_substate_size_fac, curr_substate_size = MergePattern.create_msq_and_merge_tree(graph, substate_size_fac=substate_size_fac, substate_size=substate_size, parallel=False, binary_merge=True)
+            merge_pattern = MergePattern(graph, msq, bt)
             circ, _, _ = cgsc.create_ghz_state_circuit_graph(merge_pattern, max(list(graph))+1, star=star_states)
         elif method == "merge_parallel":
-            merge_pattern =MergePattern.from_graph_parallel(graph, binary_merge=binary_merge, substate_size=substate_size)
+            msq, bt, curr_substate_size_fac, curr_substate_size = MergePattern.create_msq_and_merge_tree(graph, substate_size_fac=substate_size_fac, substate_size=substate_size, parallel=True, binary_merge=binary_merge)
+            merge_pattern = MergePattern(graph, msq, bt)
             circ, _, _ = cgsc.create_ghz_state_circuit_graph(merge_pattern, max(list(graph))+1, star=star_states)
         else:
             raise ValueError("Unkown circuit generation method {}!".format(method))
-        return circ, graph
+        return circ, graph, curr_substate_size_fac, curr_substate_size
     except Exception as e:
         print("Error in creating circuit for graph file {} with method {}!".format(graph_file, method))
         tb.print_exc()
-        return None, graph
+        return None, graph, None, None
     
 
 def eval_circuit(circuit_in: QuantumCircuit) -> dict[str, int]:
@@ -147,6 +153,7 @@ def extract_parameters(filename: str):
 
 def run_circuit_sampling(graph_dir: str, 
                          circuit_method: str, 
+                         substate_size_fac: Union[float, None] = None,
                          substate_size: Union[int, None] = None,
                          star_states: bool = False,
                          binary_merge: bool = False,
@@ -157,6 +164,7 @@ def run_circuit_sampling(graph_dir: str,
     Args:
         graph_dir: Directory containing the graph files.
         circuit_method: Identifier string for the specific method that should be used.
+        substate_size_fac: Percentage factor between the target center node degree of each subgraph (star graphs) and the average degree in the initial graph. If this is not None this factor is used for the subgraph creation. Defaults to None, which means the algorithm picks always the highest degree node if substate_size is also None. This argument is only used for methods = "merge_sequential", "merge_parallel"
         substate_size: Target size of the to-be-merged substates. Defaults to None which means to don't use a similar target size for all substates. This argument is only used for methods = "merge_sequential", "merge_parallel"
         star_states: Bool flag to work with star graph states for merging. Defaults to False, which means to work directly with GHZ states. This argument is only used for methods = "merge_sequential", "merge_parallel"
         binary_merge: bool flag to use a binary merging tree or a non-binary merging tree. Defaults to False, which means to use a non-binary merging tree. This argument is only used for method = "merge_parallel"
@@ -183,12 +191,19 @@ def run_circuit_sampling(graph_dir: str,
         # if not create it and all non-existing parent directories
         os.makedirs(out_dir)
 
+    if substate_size_fac:
+        if substate_size:
+            raise ValueError("Substate size and substate size factor are both not None. Use just one of them and set the other to None.")
+        substate = substate_size_fac
+    else:
+        substate = substate_size
+            
     # generate result string
     if circuit_method == "grow":
         out_str = f"circuit_method_{circuit_method}"
     elif circuit_method == "merge_sequential":
-        if substate_size:
-            out_str = f"circuit_method_{circuit_method}_substate_{substate_size}"
+        if substate:
+            out_str = f"circuit_method_{circuit_method}_substate_{substate}"
         else:
             out_str = f"circuit_method_{circuit_method}_substate_none"
 
@@ -203,8 +218,8 @@ def run_circuit_sampling(graph_dir: str,
         else:
             out_str = out_str + "_non-bin"
 
-        if substate_size:
-            out_str = out_str + f"_substate_{substate_size}"
+        if substate:
+            out_str = out_str + f"_substate_{substate}"
         else:
             out_str = out_str + "_substate_none"
 
@@ -250,7 +265,7 @@ def run_circuit_sampling(graph_dir: str,
             print("Result file {} already exists but will be overwritten!".format(os.path.join(result_dir, fname_circ)))
         
         # sample the circuit
-        curr_circ, curr_graph = create_circuit(file_path, circuit_method, substate_size=substate_size, star_states=star_states, binary_merge=binary_merge)
+        curr_circ, curr_graph, curr_substate_size_fac, curr_substate_size = create_circuit(file_path, circuit_method, substate_size_fac = substate_size_fac, substate_size=substate_size, star_states=star_states, binary_merge=binary_merge)
 
         # consistency check
         if len(curr_graph.nodes) != n:
@@ -279,16 +294,21 @@ def run_circuit_sampling(graph_dir: str,
                 all_foms[k].append(v)
         qubit_nums.append(curr_circ.num_qubits)
 
-        result_dic = copy.deepcopy(curr_foms)
-        result_dic["num_qubits"] = n
+        result_dict = copy.deepcopy(curr_foms)
+        result_dict["num_qubits"] = n
         if p is not None:
-            result_dic["p_value"] = p
+            result_dict["p_value"] = p
+        
+        if circuit_method != "grow":
+            # add substate sizes to results if merging methods are used
+            result_dict["substate_size_fac"] = curr_substate_size_fac
+            result_dict["substate_size"] = curr_substate_size
 
         # save circuits and foms (and graph files)
         with open(os.path.join(result_dir, fname_circ), 'wb') as fd:
             qpy.dump(curr_circ, fd)
         with open(os.path.join(result_dir, fname_foms), "w") as f:
-            yaml.dump(result_dic, f)
+            yaml.dump(result_dict, f)
 
         if copy_input_graphs:
             fname_graph = os.path.basename(file_path)
@@ -497,21 +517,22 @@ def plot_averaged_data_foms(num_qubits: list,
 
 if __name__ == "__main__":
     #circuit_method = "grow"
-    circuit_method = "merge_parallel"
-    substate_size = 4
-    star_states = False
-    binary_merge = False
+    # circuit_method = "merge_parallel"
+    # substate_size_fac = None
+    # substate_size = 4
+    # star_states = False
+    # binary_merge = False
     #circuit_method = "merge_sequential"
     # #graph_dir = "/Users/as56ohop/Documents/NAS_sync/PhD/code/ghz_state_generation_in_com_networks/ghz_generation_heuristic_alg/Saved_small_random_graphs/sample_circuits_test"
     # #graph_dir = os.path.join(os.getcwd(), "Saved_small_random_graphs/sample_circuits_test")
-    graph_dir = os.path.join(os.getcwd(), "graph_samples/random_graph_endros_renyi_1/")
+    #graph_dir = os.path.join(os.getcwd(), "graph_samples/random_graph_endros_renyi_1/")
     #graph_dir = os.path.join(os.getcwd(), "graph_samples/layout_graph_ibm_brisbane_1/")
     #graph_dir = os.path.join(os.getcwd(), "graph_samples/layout_graph_rect_grid_1/")
 # 
-    out_dir = None
+    #out_dir = None
     # out_dir = os.path.join(os.getcwd(), "simulation_results/sample_circuits/random_graphs_endros_renyi_p0.0/")
     # 
-    run_circuit_sampling(graph_dir, circuit_method, substate_size=substate_size, star_states=star_states, binary_merge=binary_merge, out_dir=out_dir, overwrite_results=True)
+    #run_circuit_sampling(graph_dir, circuit_method, substate_size_fac=substate_size_fac, substate_size=substate_size, star_states=star_states, binary_merge=binary_merge, out_dir=out_dir, overwrite_results=True)
 
     # result_dirs = [os.path.join(os.getcwd(), "simulation_results/sample_circuits/random_graphs_endros_renyi_p0.4/circuit_method_grow"),
     #                os.path.join(os.getcwd(), "simulation_results/sample_circuits/random_graphs_endros_renyi_p0.4/circuit_method_merge_parallel")]
@@ -529,11 +550,13 @@ if __name__ == "__main__":
     #result_dir = os.path.join(os.getcwd(), "graph_samples/layout_graph_rect_grid_1/circuit_sampling_results/circuit_method_merge_sequential")
     #result_dir = os.path.join(os.getcwd(), "graph_samples/layout_graph_ibm_brisbane_1/circuit_sampling_results/circuit_method_merge_parallel_non-bin_substate_none_ghz")
     #result_dir = os.path.join(os.getcwd(), "graph_samples/layout_graph_ibm_brisbane_1/circuit_sampling_results/circuit_method_merge_parallel_non-bin_substate_4_ghz")
+    #result_dir = os.path.join(os.getcwd(), "graph_samples/layout_graph_ibm_brisbane_1/circuit_sampling_results/circuit_method_merge_parallel_non-bin_substate_1.0_ghz")
 
     #output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_random_graph_endros_renyi_1_n400/circuit_method_grow")
     #output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_rect_grid_1/circuit_method_merge_sequential")
     #output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/circuit_method_merge_parallel_non-bin_substate_none_ghz")
     #output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/circuit_method_merge_parallel_non-bin_substate_4_ghz")
+    #output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/circuit_method_merge_parallel_non-bin_substate_1.0_ghz")
 
     #create_data_subset(result_dir, output_dir)
 
@@ -552,7 +575,11 @@ if __name__ == "__main__":
     # output_dir = [os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/circuit_method_merge_parallel"),
     #               os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/circuit_method_merge_parallel_non-bin_substate_none_ghz"),
     #               os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/circuit_method_merge_parallel_non-bin_substate_4_ghz")]
-    # plot_all_datasets(output_dir, ["merge parallel binary, hd", "merge parallel non-binary, hd", "merge parallel non-binary, size=4"], xdata_str="num_qubits", xlabel="number of qubits", title="Random subgraph sampling from ibm brisbane layout", fname_pre=os.path.join(os.getcwd(),"graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/circuit_sampling_eval_layout_graph_ibm_brisbane_1_non-bin_parallel_merge_version_2"))
+    # plot_all_datasets(output_dir, ["merge parallel binary, hd", "merge parallel non-binary, hd", "merge parallel non-binary, size_fac=1.0"], xdata_str="num_qubits", xlabel="number of qubits", title="Random subgraph sampling from ibm brisbane layout", fname_pre=os.path.join(os.getcwd(),"graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/circuit_sampling_eval_layout_graph_ibm_brisbane_1_non-bin_parallel_merge_version_2"))
+    output_dir = [os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/circuit_method_merge_parallel_non-bin_substate_none_ghz"),
+                  os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/circuit_method_merge_parallel_non-bin_substate_4_ghz"),
+                  os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/circuit_method_merge_parallel_non-bin_substate_1.0_ghz")]
+    plot_all_datasets(output_dir, ["merge parallel non-binary, hd", "merge parallel non-binary, size=4", "merge parallel non-binary, size_fac=1.0"], xdata_str="num_qubits", xlabel="number of qubits", title="Random subgraph sampling from ibm brisbane layout", fname_pre=os.path.join(os.getcwd(),"graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/circuit_sampling_eval_layout_graph_ibm_brisbane_1_non-bin_parallel_merge_version_3"))
     # output_dir = [os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_rect_grid_1/circuit_method_grow"),
     #               os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_rect_grid_1/circuit_method_merge_parallel"),
     #               os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_rect_grid_1/circuit_method_merge_sequential")]

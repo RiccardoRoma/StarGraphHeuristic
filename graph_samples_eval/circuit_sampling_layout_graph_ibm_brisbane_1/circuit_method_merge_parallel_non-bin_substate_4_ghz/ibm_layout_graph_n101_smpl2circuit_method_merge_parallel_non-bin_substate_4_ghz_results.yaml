@@ -2,3 +2,5 @@ circuit_depth: 17
 num_qubits: 101
 number_measurements: 24
 number_two_qubit_gates: 124
+substate_size: 4
+substate_size_fac: 1.3407079646017699
