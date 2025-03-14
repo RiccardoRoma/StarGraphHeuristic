@@ -1,6 +1,6 @@
 import merge_graphs
 import shift_center
-import generate_star_states
+import generate_states
 from Qiskit_input_graph import draw_graph, calculate_msq
 import pickle
 import networkx as nx
@@ -34,7 +34,7 @@ curr_circ = c.copy()
 # handle first subgraph
 curr_graph0 = subgraphs[0]
 # generate corr. star graph state
-curr_circ = generate_star_states.generate_star_state(curr_graph0, curr_circ)
+curr_circ = generate_states.generate_graph_state(curr_graph0, curr_circ)
 curr_center0 = mgo.get_graph_center(curr_graph0) # determine current center
 # merging edges list tuples are not ordered after (graph1, graph2) but (smaller value, higher value). Consider this here
 new_center_tuple = merging_edges_list[0]
@@ -56,7 +56,7 @@ draw_graph(curr_graph0, show=False)
 # handle second subgraph 
 curr_graph1 = subgraphs[1]
 # generate corr. star graph state
-curr_circ = generate_star_states.generate_star_state(curr_graph1, curr_circ)
+curr_circ = generate_states.generate_graph_state(curr_graph1, curr_circ)
 curr_center1 = mgo.get_graph_center(curr_graph1) # determine current center
 # merging edges list tuples are not ordered after (graph1, graph2) but (smaller value, higher value). Consider this here
 new_center_tuple = merging_edges_list[0]
@@ -83,7 +83,7 @@ print(curr_circ.draw(output="mpl"))
 # generate reference of the merged subgraphs
 curr_circ_ref = c.copy()
 # generate star graph state of the merged graph
-curr_circ_ref = generate_star_states.generate_star_state(curr_graph0, curr_circ_ref)
+curr_circ_ref = generate_states.generate_graph_state(curr_graph0, curr_circ_ref)
 print(curr_circ_ref.draw(output="mpl"))
 
 draw_graph(curr_graph0)

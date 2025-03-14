@@ -1,0 +1,63 @@
+result_dir: /Users/as56ohop/Documents/NAS_sync/PhD/code/ghz_state_generation_in_com_networks/ghz_generation_heuristic_alg/simulation_results/runtests/
+backend_str: aer_simulator
+use_premium_access: false
+run_locally: true
+generate_star_states: false
+substate_size: 3
+parallel_merge: true
+binary_parallel: false
+fidelity_witness: simple
+subgraph_size: null
+coupling_map_str: "random_graph"
+coupling_map_id: -1
+fname_coupling_map: "/Users/as56ohop/Documents/NAS_sync/PhD/code/ghz_state_generation_in_com_networks/ghz_generation_heuristic_alg/Saved_small_random_graphs/random_graph_n10_p0.1_erdos_renyi_copy_1.pkl"
+fname_noise_model: ""
+native_basis_gates_str: "fake_fractional"
+noise_model_id: 0
+noise_model_str: ""
+estimator_calibration:
+  default_shots: 4096
+  environment_options:
+    callback: null
+    job_tags: null
+    log_level: WARNING
+  execution_options:
+    init_qubits: true
+    rep_delay: null
+  max_execution_time: 10800
+  optimization_level: 0
+  resilience_level: 1
+  resilience_options:
+    measure_mitigation: true
+    measure_noise_learning:
+      num_randomizations: 32
+      shots_per_randomization: "auto"
+    zne_mitigation: false
+    pec_mitigation: false
+  simulator_options:
+    seed_simulator: null
+  twirling_options:
+    enable_gates: false
+    enable_measure: true
+    num_randomizations: "auto"
+    shots_per_randomization: "auto"
+    strategy: active-accum
+  seed_estimator: null
+  estimator_str: ibm_runtime
+  name: EstimatorCalibration
+passmanager_calibration:
+  transpilation_trials: 5
+  optimization_level: 3
+  initial_layout: null
+  layout_method: "trivial"
+  routing_method: "none"
+  translation_method: "translator"
+  scheduling_method: null
+  approximation_degree: 1.0
+  seed_transpile: null
+  unitary_synthesis_method: "default"
+  unitary_synthesis_plugin_config: null
+  dynamical_decoupling_options:
+    enable: false
+    sequence_type: "XX"
+    scheduling_method: "alap"

@@ -1,4 +1,4 @@
-import generate_star_states
+import generate_states
 from Qiskit_input_graph import draw_graph, calculate_msq
 import pickle
 import networkx as nx
@@ -26,7 +26,7 @@ for g in subgraphs:
     print("graph {} nodes: {}".format(cnt, g.nodes))
     draw_graph(g, show=False)
     c = QuantumCircuit(len(G.nodes))
-    c = generate_star_states.generate_star_state(g, c)
+    c = generate_states.generate_graph_state(g, c)
     
     print(c.draw(output="mpl"))
     

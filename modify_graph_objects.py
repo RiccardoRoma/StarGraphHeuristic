@@ -129,9 +129,21 @@ def merge_star_graphs(graph1_in: nx.Graph,
                       merging_edge: tuple[int, int],
                       keep_center1: bool = True,
                       keep_center2: bool = True) -> nx.Graph:
-    """
-    This function performs a full merge of two star graphs.
-    Determining its centers, shifting their center and merging them to a combined star graph
+    """This function merges two star graphs into a single star graph.
+
+    Args:
+        graph1_in: First star graph to merge.
+        graph2_in: Second star graph to merge.
+        merging_edge: Edge to merge the two star graphs along.
+        keep_center1: Bool flag to keep the center of the first star graph in the merged graph. Defaults to True.
+        keep_center2: Bool flag to keep the center of the second star graph in the merged graph. Defaults to True.
+
+    Raises:
+        ValueError: If the merging edge does not contain nodes of the respective subgraphs.
+        ValueError: If both centers are removed from the merged graph.
+
+    Returns:
+        Merged star graph.
     """
     # create copies which can be modified without changing the initial graphs
     graph1 = copy.deepcopy(graph1_in)
