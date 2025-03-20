@@ -1,6 +1,0 @@
-circuit_depth: 15
-num_qubits: 23
-number_measurements: 4
-number_two_qubit_gates: 26
-substate_size: 4
-substate_size_fac: 1.5

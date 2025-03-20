@@ -19,6 +19,7 @@ import copy
 import re
 from qiskit.converters import circuit_to_dag
 import traceback as tb
+import tarfile
 
 # properties for graph construction
 #graph_str = "ibm" # ibm, reg_square_latt, random
@@ -248,8 +249,8 @@ def run_circuit_sampling(graph_dir: str,
         fname, _ = os.path.splitext(fname) # split extension
 
         # filenames for the results
-        fname_circ = fname+out_str+".qpy"
-        fname_foms = fname+out_str+"_results.yaml"
+        fname_circ = fname+"_"+out_str+".qpy"
+        fname_foms = fname+"_"+out_str+"_results.yaml"
 
         # Check if results exist already and if should be overwritten
         if os.path.exists(os.path.join(result_dir, fname_foms)) and not overwrite_results:
@@ -300,9 +301,11 @@ def run_circuit_sampling(graph_dir: str,
             result_dict["p_value"] = p
         
         if circuit_method != "grow":
-            # add substate sizes to results if merging methods are used
-            result_dict["substate_size_fac"] = curr_substate_size_fac
-            result_dict["substate_size"] = curr_substate_size
+            # add substate sizes to results if merging methods are used and they are not None
+            if curr_substate_size_fac:
+                result_dict["substate_size_fac"] = curr_substate_size_fac
+            if curr_substate_size:
+                result_dict["substate_size"] = curr_substate_size
 
         # save circuits and foms (and graph files)
         with open(os.path.join(result_dir, fname_circ), 'wb') as fd:
@@ -351,6 +354,43 @@ def create_data_subset(result_dir: str,
         with open(os.path.join(output_dir, fname), "w") as f:
             yaml.dump(data, f)
 
+def create_data_subset_tar(result_dir: str,
+                           output_dir: str,
+                           fname_tar: str = "subset_data.tar.gz",
+                           n: Union[int, None] = None,
+                           p: Union[float, None] = None):
+    """Create a subset of data files from a given directory and save them as a tarball in the given output directory. The subset is created based on the number of qubits and the p value.
+
+    Args:
+        result_dir: Directory containing the data files.
+        output_dir: Directory into which the tarball should be saved.
+        fname_tar: Name of the tarball. Defaults to "subset_data.tar.gz".
+        n: Certain number of qubits that the subset should contain. Defaults to None, i.e., no restriction on the number of qubits.
+        p: Certain p value that the subset should contain. Defaults to None, i.e., no restriction on the p value.
+
+    Raises:
+        ValueError: If the result directory does not exist.
+    """
+    if not os.path.isdir(result_dir):
+        raise ValueError("Directory {} was not found!".format(result_dir))
+    
+    subset_files = []
+
+    for file_path in tqdm(glob.glob(os.path.join(result_dir, "*.yaml"))):
+        with open(file_path, "r") as f:
+            data = yaml.safe_load(f)
+
+        if n is not None and data["num_qubits"] != n:
+            continue
+        if p is not None and data.get("p_value") is not None and data["p_value"] != p:
+            continue
+
+        subset_files.append(file_path)
+
+    tarball_path = os.path.join(output_dir, fname_tar)
+    with tarfile.open(tarball_path, "w:gz") as tar:
+        for file_path in subset_files:
+            tar.add(file_path, arcname=os.path.basename(file_path))
 
 def load_yaml(file_path: str) -> dict:
     """Load a yaml file and return the content as a dictionary.
@@ -370,13 +410,13 @@ def load_yaml(file_path: str) -> dict:
     with open(file_path, 'r') as file:
         return yaml.safe_load(file)
 
-def plot_all_datasets(result_dirs: list[str],
-                      labels: list[str],
-                      xdata_str: str = "num_qubits",
-                      xlabel: str = "Number of qubits",
-                      fig_size: tuple[int, int] = (16,9),
-                      title: str = "",
-                      fname_pre: str = ""):
+def plot_all_datasets_dirs(result_dirs: list[str],
+                           labels: list[str],
+                           xdata_str: str = "num_qubits",
+                           xlabel: str = "Number of qubits",
+                           fig_size: tuple[int, int] = (16,9),
+                           title: str = "",
+                           fname_pre: str = ""):
     """Plot all datasets in given directories. The datasets are plotted based on the x-axis data and the labels.
 
     Args:
@@ -391,7 +431,6 @@ def plot_all_datasets(result_dirs: list[str],
     Raises:
         KeyError: If the x-axis data property is not found in the data files.
     """
-    colors = ["blue", "red", "green", "orange"]
     plots_figs = {}
     for dataset_dir, label in zip(result_dirs, labels):
         if os.path.isdir(dataset_dir):  # Ensure it's a directory
@@ -421,7 +460,77 @@ def plot_all_datasets(result_dirs: list[str],
                     plots_figs[k] = {}
                 plots_figs[k][label] = (xdata, v)
     
-    for k,v in plots_figs.items():
+    plot_data(plots_figs, xlabel=xlabel, fig_size=fig_size, title=title, fname_pre=fname_pre)
+            
+def plot_all_datasets_tars(result_tars: list[str],
+                           labels: list[str],
+                           xdata_str: str = "num_qubits",
+                           xlabel: str = "Number of qubits",
+                           fig_size: tuple[int, int] = (16,9),
+                           title: str = "",
+                           fname_pre: str = ""):
+    """Plot all datasets in given tarballs. The datasets are plotted based on the x-axis data and the labels.
+
+    Args:
+        result_tars: List of tarballs (result.tar.gz) containing the data files.
+        labels: List of labels for the datasets.
+        xdata_str: Identifier string what data property should be plotted on the x-axis. Defaults to "num_qubits".
+        xlabel: Label of the x-axis. Defaults to "Number of qubits".
+        fig_size: Size of each figure window. Defaults to (16,9).
+        title: Title stirng for each figure window. Defaults to "".
+        fname_pre: Preamble for the files to save the plots to. The Preamble should also contain the path to the desired directory. Defaults to "", i.e., no saving.
+
+    Raises:
+        KeyError: If the x-axis data property is not found in the data files.
+    """
+    plots_figs = {}
+    for dataset_tar, label in zip(result_tars, labels):
+        if os.path.isfile(dataset_tar) and tarfile.is_tarfile(dataset_tar):  # Ensure it's a valid tarball
+            dataset = {}
+            xdata = []
+            with tarfile.open(dataset_tar, "r:*") as tar:
+                for member in tar.getmembers():
+                    if member.isfile() and member.name.endswith((".yaml", ".yml")):
+                        with tar.extractfile(member) as f:
+                            if f:
+                                data: dict = yaml.safe_load(f)
+                                if xdata_str not in data:
+                                    raise KeyError("Key {} used for x-axis not found in all data files of current tarball {}!".format(xdata_str, dataset_tar))
+                                if not dataset:
+                                    for k,v in data.items():
+                                        if k != xdata_str:
+                                            dataset[k] = [v]
+                                        else:
+                                            xdata.append(v)
+                                else:
+                                    for k, v in data.items():
+                                        if k != xdata_str:
+                                            dataset[k].append(v)
+                                        else:
+                                            xdata.append(v)            
+            for k, v in dataset.items():
+                if plots_figs.get(k) is None:
+                    plots_figs[k] = {}
+                plots_figs[k][label] = (xdata, v)
+    
+    plot_data(plots_figs, xlabel=xlabel, fig_size=fig_size, title=title, fname_pre=fname_pre)
+            
+def plot_data(data: dict[str, dict[str, tuple[list, list]]],
+              xlabel: str="Number of qubits",
+              fig_size: tuple[int, int] = (16,9),
+              title: str="",
+              fname_pre: str = ""):
+    """Plot the given data in different figure windows. The data is plotted based on the y-axis data (different figures) and the labels (different curves in the figures).
+
+    Args:
+        data: structured data dictionary. Outer dictionary keys are the different y-axis labels and inner dictionary keys are the different curve labels in the figures. The tuples carry the actual data lists(xdata, ydata).
+        xlabel: Label of the x-axis. Defaults to "Number of qubits".
+        fig_size: Size of each figure window. Defaults to (16,9).
+        title: Title stirng for each figure window. Defaults to "".
+        fname_pre: Preamble for the files to save the plots to. The Preamble should also contain the path to the desired directory. Defaults to "", i.e., no saving.
+    """
+    colors = ["blue", "red", "green", "orange"]
+    for k,v in data.items():
         plt.figure(figsize=fig_size)
         curve_cnt=0
         for label, data in v.items():
@@ -437,8 +546,7 @@ def plot_all_datasets(result_dirs: list[str],
             fname = fname_pre + "_{}.pdf".format(k)
             plt.savefig(fname, bbox_inches="tight")
     plt.show()
-            
-            
+    
 
 # Example usage
 #base_directory = "path/to/datasets"  # Change this to your dataset directory
@@ -456,6 +564,7 @@ def add_data_average_plot(xdata, ydata, color="blue", label=None):
     """
     # Find unique x-values and compute mean and standard deviation of y-values
     unique_x = np.unique(xdata)
+    unique_x.sort()
     averaged_y = np.array([np.mean(ydata[xdata == val]) for val in unique_x])
     std_dev_y = np.array([np.std(ydata[xdata == val]) for val in unique_x])
 
@@ -516,13 +625,24 @@ def plot_averaged_data_foms(num_qubits: list,
         plt.show()
 
 if __name__ == "__main__":
-    #circuit_method = "grow"
-    # circuit_method = "merge_parallel"
+    # circuit_method = "grow"
     # substate_size_fac = None
-    # substate_size = 4
+    # substate_size = None
+    # star_states=False
+    # binary_merge=False
+    
+    # circuit_method = "merge_parallel"
+    # substate_size_fac = 0.7
+    # substate_size = None
     # star_states = False
     # binary_merge = False
-    #circuit_method = "merge_sequential"
+
+    # circuit_method = "merge_sequential"
+    # substate_size_fac = None
+    # substate_size = None
+    # star_states = False
+    # binary_merge = True
+
     # #graph_dir = "/Users/as56ohop/Documents/NAS_sync/PhD/code/ghz_state_generation_in_com_networks/ghz_generation_heuristic_alg/Saved_small_random_graphs/sample_circuits_test"
     # #graph_dir = os.path.join(os.getcwd(), "Saved_small_random_graphs/sample_circuits_test")
     #graph_dir = os.path.join(os.getcwd(), "graph_samples/random_graph_endros_renyi_1/")
@@ -532,7 +652,7 @@ if __name__ == "__main__":
     #out_dir = None
     # out_dir = os.path.join(os.getcwd(), "simulation_results/sample_circuits/random_graphs_endros_renyi_p0.0/")
     # 
-    #run_circuit_sampling(graph_dir, circuit_method, substate_size_fac=substate_size_fac, substate_size=substate_size, star_states=star_states, binary_merge=binary_merge, out_dir=out_dir, overwrite_results=True)
+    #run_circuit_sampling(graph_dir, circuit_method, substate_size_fac=substate_size_fac, substate_size=substate_size, star_states=star_states, binary_merge=binary_merge, out_dir=out_dir, overwrite_results=False)
 
     # result_dirs = [os.path.join(os.getcwd(), "simulation_results/sample_circuits/random_graphs_endros_renyi_p0.4/circuit_method_grow"),
     #                os.path.join(os.getcwd(), "simulation_results/sample_circuits/random_graphs_endros_renyi_p0.4/circuit_method_merge_parallel")]
@@ -552,13 +672,66 @@ if __name__ == "__main__":
     #result_dir = os.path.join(os.getcwd(), "graph_samples/layout_graph_ibm_brisbane_1/circuit_sampling_results/circuit_method_merge_parallel_non-bin_substate_4_ghz")
     #result_dir = os.path.join(os.getcwd(), "graph_samples/layout_graph_ibm_brisbane_1/circuit_sampling_results/circuit_method_merge_parallel_non-bin_substate_1.0_ghz")
 
+    result_dir = os.path.join(os.getcwd(), "graph_samples/layout_graph_ibm_brisbane_1/circuit_sampling_results/circuit_method_grow")
+    #output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_rect_grid_1/circuit_method_grow")
+    #create_data_subset(result_dir, output_dir)
+    output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/")
+    fname_tar = "circuit_method_grow.tar.gz"
+    create_data_subset_tar(result_dir, output_dir, fname_tar=fname_tar)
+
+    result_dir = os.path.join(os.getcwd(), "graph_samples/layout_graph_ibm_brisbane_1/circuit_sampling_results/circuit_method_merge_parallel_non-bin_substate_0.7_ghz")
+    #output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_rect_grid_1/circuit_method_merge_parallel_non-bin_substate_0.7_ghz")
+    #create_data_subset(result_dir, output_dir)
+    output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/")
+    fname_tar = "circuit_method_merge_parallel_non-bin_substate_0.7_ghz.tar.gz"
+    create_data_subset_tar(result_dir, output_dir, fname_tar=fname_tar)
+# 
+    result_dir = os.path.join(os.getcwd(), "graph_samples/layout_graph_ibm_brisbane_1/circuit_sampling_results/circuit_method_merge_parallel_non-bin_substate_1.0_ghz")
+    #output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_rect_grid_1/circuit_method_merge_parallel_non-bin_substate_1.0_ghz")
+    #create_data_subset(result_dir, output_dir)
+    output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/")
+    fname_tar = "circuit_method_merge_parallel_non-bin_substate_1.0_ghz.tar.gz"
+    create_data_subset_tar(result_dir, output_dir, fname_tar=fname_tar)
+# 
+    result_dir = os.path.join(os.getcwd(), "graph_samples/layout_graph_ibm_brisbane_1/circuit_sampling_results/circuit_method_merge_parallel_non-bin_substate_1.3_ghz")
+    #output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_rect_grid_1/circuit_method_merge_parallel_non-bin_substate_1.3_ghz")
+    #create_data_subset(result_dir, output_dir)
+    output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/")
+    fname_tar = "circuit_method_merge_parallel_non-bin_substate_1.3_ghz.tar.gz"
+    create_data_subset_tar(result_dir, output_dir, fname_tar=fname_tar)
+# 
+    result_dir = os.path.join(os.getcwd(), "graph_samples/layout_graph_ibm_brisbane_1/circuit_sampling_results/circuit_method_merge_parallel_non-bin_substate_2_ghz")
+    #output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_rect_grid_1/circuit_method_merge_parallel_non-bin_substate_3_ghz")
+    #create_data_subset(result_dir, output_dir)
+    output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/")
+    fname_tar = "circuit_method_merge_parallel_non-bin_substate_2_ghz.tar.gz"
+    create_data_subset_tar(result_dir, output_dir, fname_tar=fname_tar)
+# 
+    result_dir = os.path.join(os.getcwd(), "graph_samples/layout_graph_ibm_brisbane_1/circuit_sampling_results/circuit_method_merge_parallel_non-bin_substate_3_ghz")
+    #output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_rect_grid_1/circuit_method_merge_parallel_non-bin_substate_5_ghz")
+    #create_data_subset(result_dir, output_dir)
+    output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/")
+    fname_tar = "circuit_method_merge_parallel_non-bin_substate_3_ghz.tar.gz"
+    create_data_subset_tar(result_dir, output_dir, fname_tar=fname_tar)
+# 
+    result_dir = os.path.join(os.getcwd(), "graph_samples/layout_graph_ibm_brisbane_1/circuit_sampling_results/circuit_method_merge_parallel_non-bin_substate_4_ghz")
+    #output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_rect_grid_1/circuit_method_merge_parallel_non-bin_substate_7_ghz")
+    #create_data_subset(result_dir, output_dir)
+    output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/")
+    fname_tar = "circuit_method_merge_parallel_non-bin_substate_4_ghz.tar.gz"
+    create_data_subset_tar(result_dir, output_dir, fname_tar=fname_tar)
+# 
+    result_dir = os.path.join(os.getcwd(), "graph_samples/layout_graph_ibm_brisbane_1/circuit_sampling_results/circuit_method_merge_parallel_non-bin_substate_none_ghz")
+    #output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_rect_grid_1/circuit_method_merge_parallel_non-bin_substate_none_ghz")
+    #create_data_subset(result_dir, output_dir)
+    output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/")
+    fname_tar = "circuit_method_merge_parallel_non-bin_substate_none_ghz.tar.gz"
+    create_data_subset_tar(result_dir, output_dir, fname_tar=fname_tar)
+
     #output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_random_graph_endros_renyi_1_n400/circuit_method_grow")
-    #output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_rect_grid_1/circuit_method_merge_sequential")
     #output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/circuit_method_merge_parallel_non-bin_substate_none_ghz")
     #output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/circuit_method_merge_parallel_non-bin_substate_4_ghz")
     #output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/circuit_method_merge_parallel_non-bin_substate_1.0_ghz")
-
-    #create_data_subset(result_dir, output_dir)
 
     # output_dir = [os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_random_graph_endros_renyi_1_n57/circuit_method_grow"),
     #               os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_random_graph_endros_renyi_1_n153/circuit_method_grow"),
@@ -576,10 +749,10 @@ if __name__ == "__main__":
     #               os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/circuit_method_merge_parallel_non-bin_substate_none_ghz"),
     #               os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/circuit_method_merge_parallel_non-bin_substate_4_ghz")]
     # plot_all_datasets(output_dir, ["merge parallel binary, hd", "merge parallel non-binary, hd", "merge parallel non-binary, size_fac=1.0"], xdata_str="num_qubits", xlabel="number of qubits", title="Random subgraph sampling from ibm brisbane layout", fname_pre=os.path.join(os.getcwd(),"graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/circuit_sampling_eval_layout_graph_ibm_brisbane_1_non-bin_parallel_merge_version_2"))
-    output_dir = [os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/circuit_method_merge_parallel_non-bin_substate_none_ghz"),
-                  os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/circuit_method_merge_parallel_non-bin_substate_4_ghz"),
-                  os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/circuit_method_merge_parallel_non-bin_substate_1.0_ghz")]
-    plot_all_datasets(output_dir, ["merge parallel non-binary, hd", "merge parallel non-binary, size=4", "merge parallel non-binary, size_fac=1.0"], xdata_str="num_qubits", xlabel="number of qubits", title="Random subgraph sampling from ibm brisbane layout", fname_pre=os.path.join(os.getcwd(),"graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/circuit_sampling_eval_layout_graph_ibm_brisbane_1_non-bin_parallel_merge_version_3"))
+    # output_dir = [os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/circuit_method_merge_parallel_non-bin_substate_none_ghz"),
+    #               os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/circuit_method_merge_parallel_non-bin_substate_4_ghz"),
+    #               os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/circuit_method_merge_parallel_non-bin_substate_1.0_ghz")]
+    # plot_all_datasets(output_dir, ["merge parallel non-binary, hd", "merge parallel non-binary, size=4", "merge parallel non-binary, size_fac=1.0"], xdata_str="num_qubits", xlabel="number of qubits", title="Random subgraph sampling from ibm brisbane layout", fname_pre=os.path.join(os.getcwd(),"graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/circuit_sampling_eval_layout_graph_ibm_brisbane_1_non-bin_parallel_merge_version_3"))
     # output_dir = [os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_rect_grid_1/circuit_method_grow"),
     #               os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_rect_grid_1/circuit_method_merge_parallel"),
     #               os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_rect_grid_1/circuit_method_merge_sequential")]
@@ -588,4 +761,8 @@ if __name__ == "__main__":
     #               os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_rect_grid_1/circuit_method_merge_parallel")]
     # plot_all_datasets(output_dir, ["state growing", "merge parallel binary, hd"], xdata_str="num_qubits", xlabel="number of qubits", title="Random subgraph sampling from rectangular grid layout", fname_pre=os.path.join(os.getcwd(),"graph_samples_eval/circuit_sampling_layout_graph_rect_grid_1/circuit_sampling_eval_layout_graph_rect_grid_1_old_merge_version_no_sequential"))
     
+    # output_dir = [os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_rect_grid_1/circuit_method_grow.tar.gz")]
+    # 
+    # plot_all_datasets_tars(output_dir, ["state growing"], xdata_str="num_qubits", xlabel="number of qubits", title="Random subgraph sampling from rectangular grid layout", fname_pre=os.path.join(os.getcwd(),"graph_samples_eval/circuit_sampling_layout_graph_rect_grid_1/test_tarball"))
+
 
