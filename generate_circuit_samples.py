@@ -167,7 +167,8 @@ def create_samples_ibm_layout_graph(output_dir: str,
         fname_graph = "ibm_layout_graph_n{}_smpl{}.pkl".format(graph_size, smpl)
         
         # create current random graph
-        curr_graph = random_connected_subgraph(layout_graph, graph_size)
+        #curr_graph = random_connected_subgraph(layout_graph, graph_size)
+        curr_graph = random_connected_subgraph_2(layout_graph, graph_size)
 
         # Check if current filename already exists in output directory
         if os.path.isfile(os.path.join(output_dir, fname_graph)):
@@ -251,7 +252,8 @@ def create_samples_rectangular_grid_graph(output_dir: str,
         fname_graph = "rectangular_grid_graph_n{}_smpl{}.pkl".format(graph_size, smpl)
         
         # create current random graph
-        curr_graph = random_connected_subgraph(rect_grid_graph, graph_size)
+        #curr_graph = random_connected_subgraph(rect_grid_graph, graph_size)
+        curr_graph = random_connected_subgraph_2(rect_grid_graph, graph_size)
 
         # Check if current filename already exists in output directory
         if os.path.isfile(os.path.join(output_dir, fname_graph)):
@@ -315,18 +317,20 @@ def create_samples_random_graph(output_dir: str,
             pickle.dump(curr_graph, f)
 
 if __name__=="__main__":
-    # graph_sizes = np.linspace(10, 400, 50, dtype=int)
-    # dir = os.path.join(os.getcwd(), "graph_samples/random_graph_endros_renyi_1/")
-    # #p_list = [0.1, 0.4, 0.7, 1.0]
-    # p_list = np.round(np.linspace(0.05, 1.0, 20), 2) # round to two decimal places
-    # #p_list = [0.1]
+    graph_sizes = np.linspace(10, 400, 50, dtype=int)
+    dir = os.path.join(os.getcwd(), "graph_samples/random_graph_endros_renyi_1/")
+    #p_list = [0.1, 0.4, 0.7, 1.0]
+    p_list = np.round(np.linspace(0.05, 1.0, 20), 2) # round to two decimal places
+    #p_list = [0.1]
     # samples = 10
+    samples = list(range(10, 100)) # increase samples to 100
 # 
-    # create_samples_random_graph(dir, graph_sizes, p_list, samples=samples, use_barabasi=False)
+    create_samples_random_graph(dir, graph_sizes, p_list, samples=samples, use_barabasi=False)
 
     # graph_sizes = np.linspace(10, 127, 10, dtype=int)
     # dir = os.path.join(os.getcwd(), "graph_samples/layout_graph_ibm_brisbane_1/")
     # samples = 10
+    # samples = list(range(10, 101)) # increase samples to 100
 # 
     # create_samples_ibm_layout_graph(dir, graph_sizes, "ibm_brisbane", use_premium_access=False, samples=samples)
 
@@ -336,8 +340,9 @@ if __name__=="__main__":
 #
     # mgo.draw_graph(graph, title="Rectangular Grid Graph", layout="graphviz")
 
-    graph_sizes = np.linspace(10, 400, 50, dtype=int)
-    dir = os.path.join(os.getcwd(), "graph_samples/layout_graph_rect_grid_1/")
-    samples = 10
-
-    create_samples_rectangular_grid_graph(dir, graph_sizes, samples=samples)
+    # graph_sizes = np.linspace(10, 400, 50, dtype=int)
+    # dir = os.path.join(os.getcwd(), "graph_samples/layout_graph_rect_grid_1/")
+    # # samples = 10
+    # samples = list(range(10, 100)) # increase samples to 100
+# # 
+    # create_samples_rectangular_grid_graph(dir, graph_sizes, samples=samples)
