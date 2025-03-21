@@ -529,7 +529,7 @@ def plot_data(data: dict[str, dict[str, tuple[list, list]]],
         title: Title stirng for each figure window. Defaults to "".
         fname_pre: Preamble for the files to save the plots to. The Preamble should also contain the path to the desired directory. Defaults to "", i.e., no saving.
     """
-    colors = ["blue", "red", "green", "orange"]
+    colors = ["blue", "red", "green", "orange", "magenta", "cyan"]
     for k,v in data.items():
         plt.figure(figsize=fig_size)
         curve_cnt=0
@@ -632,7 +632,7 @@ if __name__ == "__main__":
     # binary_merge=False
     
     # circuit_method = "merge_parallel"
-    # substate_size_fac = 0.7
+    # substate_size_fac = 1.3
     # substate_size = None
     # star_states = False
     # binary_merge = False
@@ -672,61 +672,26 @@ if __name__ == "__main__":
     #result_dir = os.path.join(os.getcwd(), "graph_samples/layout_graph_ibm_brisbane_1/circuit_sampling_results/circuit_method_merge_parallel_non-bin_substate_4_ghz")
     #result_dir = os.path.join(os.getcwd(), "graph_samples/layout_graph_ibm_brisbane_1/circuit_sampling_results/circuit_method_merge_parallel_non-bin_substate_1.0_ghz")
 
-    result_dir = os.path.join(os.getcwd(), "graph_samples/layout_graph_ibm_brisbane_1/circuit_sampling_results/circuit_method_grow")
-    #output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_rect_grid_1/circuit_method_grow")
-    #create_data_subset(result_dir, output_dir)
-    output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/")
-    fname_tar = "circuit_method_grow.tar.gz"
-    create_data_subset_tar(result_dir, output_dir, fname_tar=fname_tar)
+# 
+    # result_dir = os.path.join(os.getcwd(), "graph_samples/layout_graph_ibm_brisbane_1/circuit_sampling_results/circuit_method_merge_parallel_non-bin_substate_4_ghz")
+    # #output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/circuit_method_merge_parallel_non-bin_substate_4_ghz")
+    # #create_data_subset(result_dir, output_dir)
+    # output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/")
+    # fname_tar = "circuit_method_merge_parallel_non-bin_substate_4_ghz.tar.gz"
+    # create_data_subset_tar(result_dir, output_dir, fname_tar=fname_tar)
+# # 
+    # result_dir = os.path.join(os.getcwd(), "graph_samples/layout_graph_rect_grid_1/circuit_sampling_results/circuit_method_merge_parallel_non-bin_substate_none_ghz")
+    # #output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_rect_grid_1/circuit_method_merge_parallel_non-bin_substate_none_ghz")
+    # #create_data_subset(result_dir, output_dir)
+    # output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_rect_grid_1/")
+    # fname_tar = "circuit_method_merge_parallel_non-bin_substate_none_ghz.tar.gz"
+    # create_data_subset_tar(result_dir, output_dir, fname_tar=fname_tar)
 
-    result_dir = os.path.join(os.getcwd(), "graph_samples/layout_graph_ibm_brisbane_1/circuit_sampling_results/circuit_method_merge_parallel_non-bin_substate_0.7_ghz")
-    #output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_rect_grid_1/circuit_method_merge_parallel_non-bin_substate_0.7_ghz")
-    #create_data_subset(result_dir, output_dir)
-    output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/")
-    fname_tar = "circuit_method_merge_parallel_non-bin_substate_0.7_ghz.tar.gz"
-    create_data_subset_tar(result_dir, output_dir, fname_tar=fname_tar)
-# 
-    result_dir = os.path.join(os.getcwd(), "graph_samples/layout_graph_ibm_brisbane_1/circuit_sampling_results/circuit_method_merge_parallel_non-bin_substate_1.0_ghz")
-    #output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_rect_grid_1/circuit_method_merge_parallel_non-bin_substate_1.0_ghz")
-    #create_data_subset(result_dir, output_dir)
-    output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/")
-    fname_tar = "circuit_method_merge_parallel_non-bin_substate_1.0_ghz.tar.gz"
-    create_data_subset_tar(result_dir, output_dir, fname_tar=fname_tar)
-# 
-    result_dir = os.path.join(os.getcwd(), "graph_samples/layout_graph_ibm_brisbane_1/circuit_sampling_results/circuit_method_merge_parallel_non-bin_substate_1.3_ghz")
-    #output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_rect_grid_1/circuit_method_merge_parallel_non-bin_substate_1.3_ghz")
-    #create_data_subset(result_dir, output_dir)
-    output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/")
-    fname_tar = "circuit_method_merge_parallel_non-bin_substate_1.3_ghz.tar.gz"
-    create_data_subset_tar(result_dir, output_dir, fname_tar=fname_tar)
-# 
-    result_dir = os.path.join(os.getcwd(), "graph_samples/layout_graph_ibm_brisbane_1/circuit_sampling_results/circuit_method_merge_parallel_non-bin_substate_2_ghz")
-    #output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_rect_grid_1/circuit_method_merge_parallel_non-bin_substate_3_ghz")
-    #create_data_subset(result_dir, output_dir)
-    output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/")
-    fname_tar = "circuit_method_merge_parallel_non-bin_substate_2_ghz.tar.gz"
-    create_data_subset_tar(result_dir, output_dir, fname_tar=fname_tar)
-# 
-    result_dir = os.path.join(os.getcwd(), "graph_samples/layout_graph_ibm_brisbane_1/circuit_sampling_results/circuit_method_merge_parallel_non-bin_substate_3_ghz")
-    #output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_rect_grid_1/circuit_method_merge_parallel_non-bin_substate_5_ghz")
-    #create_data_subset(result_dir, output_dir)
-    output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/")
-    fname_tar = "circuit_method_merge_parallel_non-bin_substate_3_ghz.tar.gz"
-    create_data_subset_tar(result_dir, output_dir, fname_tar=fname_tar)
-# 
-    result_dir = os.path.join(os.getcwd(), "graph_samples/layout_graph_ibm_brisbane_1/circuit_sampling_results/circuit_method_merge_parallel_non-bin_substate_4_ghz")
-    #output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_rect_grid_1/circuit_method_merge_parallel_non-bin_substate_7_ghz")
-    #create_data_subset(result_dir, output_dir)
-    output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/")
-    fname_tar = "circuit_method_merge_parallel_non-bin_substate_4_ghz.tar.gz"
-    create_data_subset_tar(result_dir, output_dir, fname_tar=fname_tar)
-# 
-    result_dir = os.path.join(os.getcwd(), "graph_samples/layout_graph_ibm_brisbane_1/circuit_sampling_results/circuit_method_merge_parallel_non-bin_substate_none_ghz")
-    #output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_rect_grid_1/circuit_method_merge_parallel_non-bin_substate_none_ghz")
-    #create_data_subset(result_dir, output_dir)
-    output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/")
-    fname_tar = "circuit_method_merge_parallel_non-bin_substate_none_ghz.tar.gz"
-    create_data_subset_tar(result_dir, output_dir, fname_tar=fname_tar)
+    # result_dir = os.path.join(os.getcwd(), "graph_samples/random_graph_endros_renyi_1/circuit_sampling_results/circuit_method_merge_parallel_non-bin_substate_none_ghz")
+    # output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_random_graph_endros_renyi_1_p1.0/")
+    # fname_tar = "circuit_method_merge_parallel_non-bin_substate_none_ghz.tar.gz"
+    # create_data_subset_tar(result_dir, output_dir, fname_tar=fname_tar, p=1.0)
+
 
     #output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_random_graph_endros_renyi_1_n400/circuit_method_grow")
     #output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_1/circuit_method_merge_parallel_non-bin_substate_none_ghz")
@@ -764,5 +729,13 @@ if __name__ == "__main__":
     # output_dir = [os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_layout_graph_rect_grid_1/circuit_method_grow.tar.gz")]
     # 
     # plot_all_datasets_tars(output_dir, ["state growing"], xdata_str="num_qubits", xlabel="number of qubits", title="Random subgraph sampling from rectangular grid layout", fname_pre=os.path.join(os.getcwd(),"graph_samples_eval/circuit_sampling_layout_graph_rect_grid_1/test_tarball"))
+
+    output_dir = [os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_random_graph_endros_renyi_1_p1.0/circuit_method_grow.tar.gz"),
+                  os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_random_graph_endros_renyi_1_p1.0/circuit_method_merge_parallel_non-bin_substate_0.7_ghz.tar.gz"),
+                  os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_random_graph_endros_renyi_1_p1.0/circuit_method_merge_parallel_non-bin_substate_1.0_ghz.tar.gz"),
+                  os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_random_graph_endros_renyi_1_p1.0/circuit_method_merge_parallel_non-bin_substate_1.3_ghz.tar.gz"),
+                  os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_random_graph_endros_renyi_1_p1.0/circuit_method_merge_parallel_non-bin_substate_none_ghz.tar.gz")]
+ 
+    plot_all_datasets_tars(output_dir, ["state growing", "merge parallel non-binary, size_fac=0.7", "merge parallel non-binary, size_fac=1.0", "merge parallel non-binary, size_fac=1.3", "merge parallel non-binary, size=hd"], xdata_str="num_qubits", xlabel="number of qubits", title="Random Endros-Renyi graph sampling for p=1.0", fname_pre=os.path.join(os.getcwd(),"graph_samples_eval/circuit_sampling_random_graph_endros_renyi_1_p1.0/circuit_sampling_eval_random_graph_endros_renyi_1_p1.0"))
 
 
