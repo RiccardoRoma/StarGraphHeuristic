@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import pickle
 from Qiskit_input_graph import MergePattern
 import modify_graph_objects as mgo
@@ -468,7 +469,8 @@ def plot_all_datasets_tars(result_tars: list[str],
                            xlabel: str = "Number of qubits",
                            fig_size: tuple[int, int] = (16,9),
                            title: str = "",
-                           fname_pre: str = ""):
+                           fname_pre: str = "",
+                           show_legend_at: list[str] = ["circuit_depth"]):
     """Plot all datasets in given tarballs. The datasets are plotted based on the x-axis data and the labels.
 
     Args:
@@ -479,6 +481,7 @@ def plot_all_datasets_tars(result_tars: list[str],
         fig_size: Size of each figure window. Defaults to (16,9).
         title: Title stirng for each figure window. Defaults to "".
         fname_pre: Preamble for the files to save the plots to. The Preamble should also contain the path to the desired directory. Defaults to "", i.e., no saving.
+        show_legend_at: list of all y-axis parameter at which we should show a legend. Defaults to ["circuit_depth"], which means to show the legend only at the circuit depth figure.
 
     Raises:
         KeyError: If the x-axis data property is not found in the data files.
@@ -513,13 +516,14 @@ def plot_all_datasets_tars(result_tars: list[str],
                     plots_figs[k] = {}
                 plots_figs[k][label] = (xdata, v)
     
-    plot_data(plots_figs, xlabel=xlabel, fig_size=fig_size, title=title, fname_pre=fname_pre)
+    plot_data(plots_figs, xlabel=xlabel, fig_size=fig_size, title=title, fname_pre=fname_pre, show_legend_at=show_legend_at)
             
 def plot_data(data: dict[str, dict[str, tuple[list, list]]],
               xlabel: str="Number of qubits",
               fig_size: tuple[int, int] = (16,9),
               title: str="",
-              fname_pre: str = ""):
+              fname_pre: str = "",
+              show_legend_at: list[str] = ["circuit_depth"]):
     """Plot the given data in different figure windows. The data is plotted based on the y-axis data (different figures) and the labels (different curves in the figures).
 
     Args:
@@ -528,18 +532,53 @@ def plot_data(data: dict[str, dict[str, tuple[list, list]]],
         fig_size: Size of each figure window. Defaults to (16,9).
         title: Title stirng for each figure window. Defaults to "".
         fname_pre: Preamble for the files to save the plots to. The Preamble should also contain the path to the desired directory. Defaults to "", i.e., no saving.
+        show_legend_at: list of all y-axis parameter at which we should show a legend. Defaults to ["circuit_depth"], which means to show the legend only at the circuit depth figure.
     """
-    colors = ["blue", "red", "green", "orange", "magenta", "cyan"]
+    #colors = ["blue", "red", "green", "orange", "magenta", "cyan"]
+    # Define markers and colors to use in a plot
+    markers = ["o", "x", "d", "s", "*", "p"]
+    #colors = ["k", "b", "y", "m", "c", "g"]
+    colors = mpl.color_sequences["tab10"]
+    
+    # The parameters for plotting
+    plt.rc("text", usetex=True)
+    plt.rc("font", family="serif", weight="bold", size="20")
+    plt.rc("axes", linewidth=2)
+    plt.rc("xtick.major", size=10)
+    plt.rc("xtick.major", width=2)
+    plt.rc("xtick.minor", size=5)
+    plt.rc("xtick.minor", width=2)
+    plt.rc("ytick.major", size=10)
+    plt.rc("ytick.major", width=2)
+    plt.rc("ytick.minor", size=5)
+    plt.rc("ytick.minor", width=2)
+     
+     
+    
     for k,v in data.items():
         plt.figure(figsize=fig_size)
         curve_cnt=0
         for label, data in v.items():
-            add_data_average_plot(np.asarray(data[0]), np.asarray(data[1]), colors[curve_cnt], label=label)
+            add_data_average_plot(np.asarray(data[0]), np.asarray(data[1]), color=colors[curve_cnt], marker=markers[curve_cnt], label=label)
             curve_cnt += 1
         plt.xlabel(xlabel)
-        plt.ylabel(k)
+        # set y-axis label
+        if k == "circuit_depth":
+            ylabel="Circuit depth"
+        elif k == "number_measurements":
+            ylabel="Number of measurements"
+        elif k == "number_two_qubit_gates":
+            ylabel = "Number of two-qubit gates"
+        elif k == "substate_size":
+            ylabel="Substate size"
+        elif k == "substate_size_fac":
+            ylabel = "Substate size factor"
+        else:
+            ylabel = k
+        plt.ylabel(ylabel)
         plt.grid()
-        plt.legend()
+        if k in show_legend_at:
+            plt.legend()
         plt.title(title)
 
         if len(fname_pre) > 0:
@@ -553,7 +592,7 @@ def plot_data(data: dict[str, dict[str, tuple[list, list]]],
 #plot_all_datasets(base_directory)
 
 
-def add_data_average_plot(xdata, ydata, color="blue", label=None):
+def add_data_average_plot(xdata, ydata, color="blue", line_style="--", marker="o", label=None):
     """Add a plot to the current figure with averaged y-values for each unique x-value, with error bars representing standard deviation.
 
     Args:
@@ -562,6 +601,9 @@ def add_data_average_plot(xdata, ydata, color="blue", label=None):
         color: Color of the curves. Defaults to "blue".
         label: Curve label. Defaults to None.
     """
+    # Marker size
+    msize = 10
+    lw = 2
     # Find unique x-values and compute mean and standard deviation of y-values
     unique_x = np.unique(xdata)
     unique_x.sort()
@@ -573,8 +615,8 @@ def add_data_average_plot(xdata, ydata, color="blue", label=None):
         label = label + ", mean"
     else:
         label = "mean"
-    plt.errorbar(unique_x, averaged_y, yerr=std_dev_y, fmt='o', color=color, label=label, capsize=5)
-    plt.plot(unique_x, averaged_y, linestyle='-', color=color, alpha=0.6)
+    plt.errorbar(unique_x, averaged_y, yerr=std_dev_y, fmt=marker, ms=msize, color=color, label=label, capsize=5)
+    plt.plot(unique_x, averaged_y, linestyle=line_style, linewidth=lw, color=color, alpha=0.6)
 
 
 def plot_averaged_data_foms(num_qubits: list, 
