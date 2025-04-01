@@ -724,11 +724,23 @@ def load_ibm_credentials(premium_access: bool = False) -> QiskitRuntimeService:
 
 def get_simple_noise_model_from_backend(service: QiskitRuntimeService,
                                         backend_str: str, 
-                                        consider_2qubit_gate_error: bool = True,
+                                        consider_gate_error: bool = True,
                                         consider_readout_error: bool = True) -> NoiseModel:
     """
     This function simplifies the backend noise model which is derived from given backend_str.
-    The simplified noise model considers only the two-qubit gate error and/or the qubit readout error.
+    The simplified noise model considers only the gate errors and/or the qubit readout error.
+
+    Args:
+        service: Qiskit runtime service to import the device backend
+        backend_str: string that specifies the device backend
+        consider_gate_error: Bool flag to consider gate errors in the simplified noise model. Defaults to True. Note that gate errors consist of a depolarizing channel followed by a thermal relaxation channel
+        consider_readout_error: Bool flag to consider the readout errors in the simplified noise model. Defaults to True.
+
+    Raises:
+        ValueError: 
+
+    Returns:
+        _description_
     """
     backend_opt = {"backend_str": backend_str,
                    "noise_model_id": 0,
@@ -743,30 +755,17 @@ def get_simple_noise_model_from_backend(service: QiskitRuntimeService,
     device_backend = get_backend(service, backend_opt, print_status=False)
     noise_model = NoiseModel(basis_gates=device_backend.operation_names)
 
-    if consider_2qubit_gate_error:
-        gate_errs = basic_device_gate_errors(target=device_backend.target)
-    
-        # check available two-qubit gate
-        if "cx" in device_backend.operation_names:
-            two_qubit_gate_str = "cx"
-        elif "ecr" in device_backend.operation_names:
-            two_qubit_gate_str = "ecr"
-        else:
-            raise ValueError("Cannot find two qubit gate in backend operations!")
-    
-        two_qubit_gate_errs = []
-        for et in gate_errs:
-            if et[0] == two_qubit_gate_str:
-                two_qubit_gate_errs.append(et)
-        
-        for et in two_qubit_gate_errs:
-            noise_model.add_quantum_error(et[2], et[0], et[1])
+    if consider_gate_error:
+        gate_errs = basic_device_gate_errors(gate_error=True, thermal_relaxation=True, target=device_backend.target)
+
+        for name, qubits, error in gate_errs:
+            noise_model.add_quantum_error(error, name, qubits)
 
     if consider_readout_error:
         read_errs = basic_device_readout_errors(target=device_backend.target)
 
-        for et in read_errs:
-            noise_model.add_readout_error(et[1], et[0])
+        for qubits, error in read_errs:
+            noise_model.add_readout_error(error, qubits)
 
     return noise_model
     
@@ -818,20 +817,20 @@ def get_backend(service: QiskitRuntimeService,
             if print_status:
                 print("Loaded noise model from backend {}!".format(noise_model_str))
         elif noise_model_id==2:
-            # load simplified noise model from backend noise_model_str, considering only two-qubit gate errors
-            noise_model = get_simple_noise_model_from_backend(service, noise_model_str, consider_2qubit_gate_error=True, consider_readout_error=False)
+            # load simplified noise model from backend noise_model_str, considering only gate errors
+            noise_model = get_simple_noise_model_from_backend(service, noise_model_str, consider_gate_error=True, consider_readout_error=False)
             if print_status:
-                print("Loaded simplified noise model from backend {}, considering only two-qubit gate errors!".format(noise_model_str))
+                print("Loaded simplified noise model from backend {}, considering only gate errors!".format(noise_model_str))
         elif noise_model_id==3:
             # load simplified noise model from backend noise_model_str, considering only readout errors
-            noise_model = get_simple_noise_model_from_backend(service, noise_model_str, consider_2qubit_gate_error=False, consider_readout_error=True)
+            noise_model = get_simple_noise_model_from_backend(service, noise_model_str, consider_gate_error=False, consider_readout_error=True)
             if print_status:
                 print("Loaded simplified noise model from backend {}, considering only readout errors!".format(noise_model_str))
         elif noise_model_id==4:
-            # load simplified noise model from backend noise_model_str, considering only two-qubit gate errors and readout errors
-            noise_model = get_simple_noise_model_from_backend(service, noise_model_str, consider_2qubit_gate_error=True, consider_readout_error=True)
+            # load simplified noise model from backend noise_model_str, considering only gate errors and readout errors
+            noise_model = get_simple_noise_model_from_backend(service, noise_model_str, consider_gate_error=True, consider_readout_error=True)
             if print_status:
-                print("Loaded simplified noise model from backend {}, considering only two-qubit gate errors and readout errors!".format(noise_model_str))
+                print("Loaded simplified noise model from backend {}, considering only gate errors and readout errors!".format(noise_model_str))
         else:
             raise ValueError("noise model id {} is currently not supported.".format(noise_model_id))
         
