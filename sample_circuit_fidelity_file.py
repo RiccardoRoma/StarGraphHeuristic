@@ -32,6 +32,13 @@ if __name__ == "__main__":
     result_dir = os.path.join(result_dir, sim_id)
     if not os.path.isdir(result_dir):
         os.mkdir(result_dir)
+
+    # the current circuit file gets an extra subfolder. This is needed for parallel processing on compute cluster
+    result_dir = os.path.join(result_dir, os.path.splitext(os.path.basename(circ_file))[0])
+    if os.path.isdir(result_dir):
+        raise ValueError("Unique directory for this run does already exist!")
+    else:
+        os.mkdir(result_dir)
     
     
     # load circuits from file
