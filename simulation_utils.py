@@ -32,7 +32,41 @@ import qiskit_ibm_runtime as qir
 from qiskit_ibm_provider import IBMProvider
 from qiskit_ibm_runtime.options.utils import Unset
 from dotenv import load_dotenv
+from qiskit.circuit import Qubit
+from qiskit import qpy
+from qiskit_ibm_runtime import Batch, Session
+from qiskit.quantum_info import SparsePauliOp
+from qiskit.primitives import PrimitiveResult
+from collections import defaultdict
 
+
+def load_calibration_from_file(cal_file: str) -> dict:
+    """This function reads in a calibration dictionary from a yaml file.
+
+    Args:
+        cal_file: YAML file, to load the dictionary from.
+
+    Raises:
+        FileNotFoundError: if cal_file is not a file
+        ValueError: if the loaded dictionary is None.
+
+    Returns:
+        The loaded dictionary.
+    """
+    # read calibration dictionary
+    if not os.path.isfile(cal_file):
+        raise FileNotFoundError("File {} was not found!".format(cal_file))
+
+    cal_dict = None
+    raw_data = None
+    with open(cal_file, "r") as f:
+        raw_data = f.read()
+    
+    cal_dict = yaml.load(raw_data, Loader=yaml.Loader)
+    if cal_dict is None:
+        raise ValueError("Something went wrong while reading in yaml text file! resulting dictionary is empty!")
+    
+    return cal_dict
 
 
 class Calibration(metaclass=abc.ABCMeta):
@@ -403,18 +437,8 @@ def get_EstimatorCalibration_from_dict(est_cal_dict_in: dict) -> EstimatorCalibr
     return est_cal
 
 def get_EstimatorCalibration_from_yaml(fname: str) -> EstimatorCalibration:
-    if not os.path.isfile(fname):
-        raise ValueError("file {} does not exist!".format(fname))
+    cal_dict = load_calibration_from_file(fname)
 
-    cal_dict = None
-    raw_data = None
-    with open(fname, "r") as f:
-        raw_data = f.read()
-
-    cal_dict = yaml.load(raw_data, Loader=yaml.Loader)
-    if cal_dict is None:
-        raise ValueError("Something went wrong while reading in yaml text file! resulting dictionary is empty!")
-    
     est_cal_dict = cal_dict.get("estimator_calibration", None)
     if est_cal_dict is None:
         raise ValueError("Something went wrong while reading in yaml text file! No estimator calibration subdictionary found!")
@@ -630,18 +654,7 @@ def get_PresetPassManagerCalibration_from_dict(cal_dict: dict) -> PresetPassMana
                                         transpilation_trials = transpilation_trials)
 
 def get_PresetPassManagerCalibration_from_yaml(fname: str) -> PresetPassManagerCalibration:
-    
-    if not os.path.isfile(fname):
-        raise ValueError("file {} does not exist!".format(fname))
-
-    cal_dict = None
-    raw_data = None
-    with open(fname, "r") as f:
-        raw_data = f.read()
-
-    cal_dict = yaml.load(raw_data, Loader=yaml.Loader)
-    if cal_dict is None:
-        raise ValueError("Something went wrong while reading in yml text file! resulting dictionary is empty!")
+    cal_dict = load_calibration_from_file(fname)
     
     pm_cal_dict = cal_dict.get("passmanager_calibration", None)
 
@@ -725,22 +738,23 @@ def load_ibm_credentials(premium_access: bool = False) -> QiskitRuntimeService:
 def get_simple_noise_model_from_backend(service: QiskitRuntimeService,
                                         backend_str: str, 
                                         consider_gate_error: bool = True,
-                                        consider_readout_error: bool = True) -> NoiseModel:
+                                        consider_thermal_relaxation: bool = True,
+                                        consider_readout_error: bool = True,
+                                        **kwargs) -> NoiseModel:
     """
     This function simplifies the backend noise model which is derived from given backend_str.
-    The simplified noise model considers only the gate errors and/or the qubit readout error.
+    The simplified noise model can consider only the gate errors and/or thermal relaxation errors and/or the qubit readout error.
 
     Args:
         service: Qiskit runtime service to import the device backend
         backend_str: string that specifies the device backend
-        consider_gate_error: Bool flag to consider gate errors in the simplified noise model. Defaults to True. Note that gate errors consist of a depolarizing channel followed by a thermal relaxation channel
+        consider_gate_error: Bool flag to consider gate errors in the simplified noise model. Defaults to True. Note that gate errors consist of a depolarizing channel
+        consider_thermal_relaxation: Bool flag to consider thermal relaxation in the simplified noise model. Defaults to True. Thermal relaxation error channel is added during gate applications and delay operations
         consider_readout_error: Bool flag to consider the readout errors in the simplified noise model. Defaults to True.
-
-    Raises:
-        ValueError: 
+        kwargs: keyword arguments that are passed to the NoiseModel.from_backend() function.
 
     Returns:
-        _description_
+        The constructed noise model.
     """
     backend_opt = {"backend_str": backend_str,
                    "noise_model_id": 0,
@@ -754,18 +768,7 @@ def get_simple_noise_model_from_backend(service: QiskitRuntimeService,
     
     device_backend = get_backend(service, backend_opt, print_status=False)
     noise_model = NoiseModel(basis_gates=device_backend.operation_names)
-
-    if consider_gate_error:
-        gate_errs = basic_device_gate_errors(gate_error=True, thermal_relaxation=True, target=device_backend.target)
-
-        for name, qubits, error in gate_errs:
-            noise_model.add_quantum_error(error, name, qubits)
-
-    if consider_readout_error:
-        read_errs = basic_device_readout_errors(target=device_backend.target)
-
-        for qubits, error in read_errs:
-            noise_model.add_readout_error(error, qubits)
+    noise_model = NoiseModel.from_backend(device_backend, gate_error=consider_gate_error, readout_error=consider_readout_error, thermal_relaxation=consider_thermal_relaxation, **kwargs)
 
     return noise_model
     
@@ -818,19 +821,34 @@ def get_backend(service: QiskitRuntimeService,
                 print("Loaded noise model from backend {}!".format(noise_model_str))
         elif noise_model_id==2:
             # load simplified noise model from backend noise_model_str, considering only gate errors
-            noise_model = get_simple_noise_model_from_backend(service, noise_model_str, consider_gate_error=True, consider_readout_error=False)
+            noise_model = get_simple_noise_model_from_backend(service, noise_model_str, consider_gate_error=True, consider_thermal_relaxation=False, consider_readout_error=False)
             if print_status:
                 print("Loaded simplified noise model from backend {}, considering only gate errors!".format(noise_model_str))
         elif noise_model_id==3:
             # load simplified noise model from backend noise_model_str, considering only readout errors
-            noise_model = get_simple_noise_model_from_backend(service, noise_model_str, consider_gate_error=False, consider_readout_error=True)
+            noise_model = get_simple_noise_model_from_backend(service, noise_model_str, consider_gate_error=False, consider_thermal_relaxation=False, consider_readout_error=True)
             if print_status:
                 print("Loaded simplified noise model from backend {}, considering only readout errors!".format(noise_model_str))
         elif noise_model_id==4:
+            # load simplified noise model from backend noise_model_str, considering only thermal relaxation errors
+            noise_model = get_simple_noise_model_from_backend(service, noise_model_str, consider_gate_error=False, consider_thermal_relaxation=True, consider_readout_error=False)
+            if print_status:
+                print("Loaded simplified noise model from backend {}, considering only thermal relaxation errors!".format(noise_model_str))
+        elif noise_model_id==5:
             # load simplified noise model from backend noise_model_str, considering only gate errors and readout errors
-            noise_model = get_simple_noise_model_from_backend(service, noise_model_str, consider_gate_error=True, consider_readout_error=True)
+            noise_model = get_simple_noise_model_from_backend(service, noise_model_str, consider_gate_error=True, consider_thermal_relaxation=False, consider_readout_error=True)
             if print_status:
                 print("Loaded simplified noise model from backend {}, considering only gate errors and readout errors!".format(noise_model_str))
+        elif noise_model_id==6:
+            # load simplified noise model from backend noise_model_str, considering only gate errors and thermal relaxation errors
+            noise_model = get_simple_noise_model_from_backend(service, noise_model_str, consider_gate_error=True, consider_thermal_relaxation=True, consider_readout_error=False)
+            if print_status:
+                print("Loaded simplified noise model from backend {}, considering only gate errors and thermal relaxation errors!".format(noise_model_str))
+        elif noise_model_id==7:
+            # load simplified noise model from backend noise_model_str, considering only readout errors and thermal relaxation errors
+            noise_model = get_simple_noise_model_from_backend(service, noise_model_str, consider_gate_error=False, consider_thermal_relaxation=True, consider_readout_error=True)
+            if print_status:
+                print("Loaded simplified noise model from backend {}, considering only readout errors and thermal relaxation errors!".format(noise_model_str))
         else:
             raise ValueError("noise model id {} is currently not supported.".format(noise_model_id))
         
@@ -1007,3 +1025,248 @@ def verify_if_else_params_in_transp_circ(circ: QuantumCircuit):
                             new_instrs.append(cinstr)
                     d.operation.params[i] = QuantumCircuit.from_instructions(new_instrs)
                         
+def count_gates(circ: QuantumCircuit) -> dict[Qubit, int]:
+    """Count the gate operations on each qubit
+
+    Args:
+        circ: quantum circuit to count the gate operations on
+
+    Returns:
+        Gate counts of each qubit as a dictionary {qubit: count}
+    """
+    gate_count = {qubit: 0 for qubit in circ.qubits }
+    for gate in circ.data:
+        if gate.operation.name != "barrier":
+            for qubit in gate.qubits:
+                gate_count[qubit] += 1
+    return gate_count
+
+def get_idle_qubits(circ: QuantumCircuit) -> list[Qubit]:
+    gate_count = count_gates(circ)
+    idle_qubits = []
+    for qubit, count in gate_count.items():
+        if count == 0:
+            idle_qubits.append(qubit)
+
+    return idle_qubits
+
+def remove_idle_qubits(qc: QuantumCircuit) -> QuantumCircuit:
+    """Remove all idle qubits from a quantum circuit
+
+    Args:
+        qc: quantum circuit to remove the qubits from
+
+    Returns:
+        Quantum circuit without idle qubits
+    """
+    qc_out: QuantumCircuit = qc.copy()
+    gate_count = count_gates(qc_out)
+    for qubit, count in gate_count.items():
+        if count == 0:
+            qc_out.qubits.remove(qubit)
+    return qc_out
+
+
+def load_circuits_from_file(circ_files: list[str]) -> list[QuantumCircuit]:
+    """Load a list of qiskit.circuit.QuantumCircuit objects from qpy serialized files.
+
+    Args:
+        circ_files: The list of file names from which the circuits should be loaded
+
+    Raises:
+        FileNotFoundError: If a element of circ_files is not a file.
+
+    Returns:
+        list of qiskit.circuit.QuantumCircuit objects
+    """
+    circuits = []
+    for file in circ_files:
+        # load circuit file
+        if not os.path.isfile(file):
+            raise FileNotFoundError("File {} not found!".format(file))
+        
+        with open(file, "rb") as f:
+            qpy_object = qpy.load(f)
+            if isinstance(qpy_object, QuantumCircuit):
+                circuits.append(qpy_object.copy())
+            elif isinstance(qpy_object, list):
+                circuits.extend(qpy_object)
+
+    return circuits
+
+def run_circuits(circ_list: list[QuantumCircuit], observables: list[SparsePauliOp], cal_dict: dict, result_dir: str = "", sim_id: str = "") -> tuple[PrimitiveResult, list[tuple[QuantumCircuit, SparsePauliOp]]]:
+    """Run the list of circuits on a defined backend with qiskit_ibm_runtime.Estimator. This includes a intermediate transpilation step
+
+    Args:
+        circ_list: list of quantum circuits that should be ran
+        observables: list of the Pauli observables that should be measured as a SparsePauliOp object. Must be of same length as circ_list, since observable[i] = observable measured on circ_list[i].
+        cal_dict: dictionary containing the backend calibration, transpilation calibration (passmanager), estimator calibration.
+        result_dir: path/to/result_dir in which the calibration dictionary, noise model, coupling map and primitive result should be saved. Defaults to "" which means no saving.
+        sim_id: identifier string for this run (used for saving files in result_dir). Defaults to "".
+
+    Raises:
+        ValueError: If calibration file name does not exist or if loaded calibration dictionary is None.
+        ValueError: If keyword for observable generation is unkown.
+        ValueError: if mode string identifier does not match any supported execution mode.
+
+    Returns:
+        Estimator primitive result, transpiled circuits and observable pairs
+    """
+    # consistency check
+    if len(circ_list) != len(observables):
+        raise ValueError(f"Dimension of observables list {len(observables)} must match the dimension of circuit list {len(circ_list)}!")
+    
+
+    # save the used calibration dictionary to result dir
+    if result_dir:
+        fname_cal = f"sim_{sim_id}_calibration.yaml"
+        fname_cal = os.path.join(result_dir, fname_cal)
+        with open(fname_cal, "w") as f:
+            yaml.dump(cal_dict, f)
+
+    # get estimator calibration
+    est_cal_dict = cal_dict.get("estimator_calibration", None)
+    if est_cal_dict is None:
+        raise ValueError("No estimator calibration subdictionary found in calibration dictionary!")
+    else:
+        # create deepcopy to avoid changing the initial dictionary
+        est_cal_dict = copy.deepcopy(est_cal_dict)
+    
+    use_simulator = est_cal_dict.get("use_simulator", None)
+    if use_simulator is None:
+        est_cal_dict["use_simulator"] = cal_dict["run_locally"]
+    est_cal = get_EstimatorCalibration_from_dict(est_cal_dict)
+
+    # get passmanager calibration
+    pm_cal_dict = cal_dict.get("passmanager_calibration", None)
+
+    if pm_cal_dict is None:
+        raise ValueError("Something went wrong while reading in yml text file! No passmanager subdictionary found!")
+    else:
+        # create deepcopy to avoid changing the initial dictionary
+        pm_cal_dict = copy.deepcopy(pm_cal_dict)
+    pm_cal = get_PresetPassManagerCalibration_from_dict(pm_cal_dict)
+
+    
+    use_premium_access = cal_dict["use_premium_access"]
+    mode_str = cal_dict.get("execution_mode", "backend") # execute in backend mode by default
+    backend_str = cal_dict["backend_str"]
+    noise_model_id = cal_dict["noise_model_id"]
+    fname_noise_model = cal_dict["fname_noise_model"]
+    #fname_noise_model = os.path.join(result_dir, fname_noise_model)
+    noise_model_str = cal_dict["noise_model_str"]
+    coupling_map_id = cal_dict["coupling_map_id"]
+    fname_coupling_map = cal_dict["fname_coupling_map"]
+    #fname_coupling_map = os.path.join(result_dir, fname_coupling_map)
+    coupling_map_str = cal_dict["coupling_map_str"]
+    native_basis_gates_str = cal_dict["native_basis_gates_str"]
+    # setup backend options
+    backend_opt = {"backend_str": backend_str, 
+                   "noise_model_id": noise_model_id, 
+                   "fname_noise_model": fname_noise_model, 
+                   "noise_model_str": noise_model_str,
+                   "coupling_map_id": coupling_map_id,
+                   "fname_coupling_map": fname_coupling_map,
+                   "coupling_map_str": coupling_map_str,
+                   "native_basis_gates_str": native_basis_gates_str,
+                   "run_locally": cal_dict["run_locally"]}
+    # load IBM Quantum credentials
+    service = load_ibm_credentials(premium_access=use_premium_access)
+    
+    # load backend from passmanager calibration
+    backend = get_backend(service, backend_opt)
+    
+    # get noise model from backend
+    noise_model = backend.options.get("noise_model", None)
+    if noise_model is None:
+        noise_model = NoiseModel.from_backend(backend)
+    
+    # save noise model if not already done
+    if result_dir:
+        if noise_model:
+            if not noise_model.is_ideal():
+                curr_file = os.path.join(result_dir, fname_noise_model)
+                if not os.path.isfile(curr_file):
+                    with open(curr_file, "wb") as f:
+                        pickle.dump(noise_model,f)
+    
+    # save coupling map if not already done
+    coupling_map = backend.coupling_map
+    if result_dir:
+        if coupling_map:
+            curr_file = os.path.join(result_dir, fname_coupling_map)
+            if not os.path.isfile(curr_file):
+                with open(curr_file, "wb") as f:
+                    pickle.dump(coupling_map,f)
+    print("Loaded backend!")
+
+    # add initial layout to passmanager calibration
+    if pm_cal.initial_layout is not None:
+        print("Warning: Initial layout of passmanager calibration is not None but will be overwritten due to algorithm.")
+
+    # find all different qubit numbers and group circuits accordingly, for transpilation
+    indexed_circuits = list(enumerate(circ_list))
+
+    num_qubits_groups = defaultdict(list)
+    index_map = defaultdict(list)
+    for idx, circ in indexed_circuits:
+        num_qubits_groups[circ.num_qubits].append(circ)
+        index_map[circ.num_qubits].append(idx)
+
+    # transpile circuits
+    processed_groups = {}
+    for num_qubits, circ_group in num_qubits_groups.items():
+        init_layout = list(range(num_qubits)) # list of all qubits, i.e., a trivial layout i -> i
+        pm_cal.initial_layout = init_layout
+        # create pass manager from calibration
+        pass_manager = get_passmanager(backend, pm_cal)
+        # transpile circuit with passmanager
+        processed_groups[num_qubits] = transpile_circuits(pass_manager, circ_group, transpilation_trials=pm_cal.transpilation_trials, remove_barriers=True)
+    print("Transpiled circuits!")
+
+    # reverse grouping of the transpiled circuits
+    transp_circ_list = [None] * len(circ_list)
+    for num_qubits, transp_circ_group in processed_groups.items():
+        for idx, circ in zip(index_map[num_qubits], transp_circ_group):
+            transp_circ_list[idx] = circ
+    
+    # create pairs of transpiled circuit with isa observable
+    circ_obs_pairs = []
+    for ob, transp_circ in zip(observables, transp_circ_list):
+        isa_observable = ob.apply_layout(transp_circ.layout, num_qubits=backend.num_qubits)
+        circ_obs_pairs.append((transp_circ, copy.deepcopy(isa_observable)))
+    print("Created circuit observable pairs!")
+
+    # run circuit, observable pairs with IBM estimator
+    est_result = None
+    if mode_str=="backend":
+        # create estimator from calibration
+        estimator = get_estimator(est_cal, mode=backend)
+        job = estimator.run(circ_obs_pairs)
+        est_result = job.result()
+    elif mode_str=="batch":
+        batch = Batch(backend=backend)
+        # create estimator from calibration
+        estimator = get_estimator(est_cal, mode=batch)
+        job = estimator.run(circ_obs_pairs)
+        est_result = job.result()
+        batch.close()
+    elif mode_str=="session":
+        session = Session(backend=backend)
+        # create estimator from calibration
+        estimator = get_estimator(est_cal, mode=session)
+        job = estimator.run(circ_obs_pairs)
+        est_result = job.result()
+        session.close()
+
+    print("Finished running circuits!")
+
+    # save primitive result to result dir
+    if result_dir:
+        # pickle estimator result
+        fname_est_result = f"sim_{sim_id}_estimator_result.pickle"
+        fname_est_result = os.path.join(result_dir, fname_est_result)
+        with open(fname_est_result, "wb") as f:
+            pickle.dump(est_result, f)
+
+    return est_result, circ_obs_pairs
