@@ -195,6 +195,27 @@ def get_graph_center(G: nx.Graph) -> int:
     
     return max_degree_node
     
+
+def is_subgraph(sub_G: nx.Graph, 
+                G: nx.Graph) -> bool:
+    """Check if sub_G is a subgraph of G.
+
+    Args:
+        sub_G: The potential subgraph.
+        G: The graph to check against.
+
+    Returns:
+        bool: True if sub_G is a subgraph of G, False otherwise.
+    """
+    # Check if all nodes of sub_G are in G
+    if not set(sub_G.nodes).issubset(G.nodes):
+        return False
+
+    # Check if all edges of sub_G are in G
+    if not set(sub_G.edges).issubset(G.edges):
+        return False
+
+    return True
     
 
 
