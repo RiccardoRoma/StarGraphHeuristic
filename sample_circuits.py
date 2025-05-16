@@ -667,14 +667,14 @@ def plot_averaged_data_foms(num_qubits: list,
         plt.show()
 
 if __name__ == "__main__":
-    # circuit_method = "grow"
-    # substate_size_fac = None
-    # substate_size = None
-    # star_states=False
-    # binary_merge=False
+    circuit_method = "grow"
+    substate_size_fac = None
+    substate_size = None
+    star_states=False
+    binary_merge=False
     
     # circuit_method = "merge_parallel"
-    # substate_size_fac = 1.3
+    # substate_size_fac = None
     # substate_size = None
     # star_states = False
     # binary_merge = False
@@ -689,12 +689,47 @@ if __name__ == "__main__":
     # #graph_dir = os.path.join(os.getcwd(), "Saved_small_random_graphs/sample_circuits_test")
     #graph_dir = os.path.join(os.getcwd(), "graph_samples/random_graph_endros_renyi_1/")
     #graph_dir = os.path.join(os.getcwd(), "graph_samples/layout_graph_ibm_brisbane_1/")
+    graph_dir = os.path.join(os.getcwd(), "graph_samples/layout_graph_ibm_brisbane_2/")
     #graph_dir = os.path.join(os.getcwd(), "graph_samples/layout_graph_rect_grid_1/")
-# 
-    #out_dir = None
+
+    out_dir = None
     # out_dir = os.path.join(os.getcwd(), "simulation_results/sample_circuits/random_graphs_endros_renyi_p0.0/")
     # 
-    #run_circuit_sampling(graph_dir, circuit_method, substate_size_fac=substate_size_fac, substate_size=substate_size, star_states=star_states, binary_merge=binary_merge, out_dir=out_dir, overwrite_results=False)
+    run_circuit_sampling(graph_dir, circuit_method, substate_size_fac=substate_size_fac, substate_size=substate_size, star_states=star_states, binary_merge=binary_merge, out_dir=out_dir, overwrite_results=False)
+
+    # circuit_method = "merge_parallel"
+    # substate_size_fac = 0.1
+    # substate_size = None
+    # star_states = False
+    # binary_merge = False
+    # 
+    # graph_dir = os.path.join(os.getcwd(), "graph_samples/random_graph_endros_renyi_1/")
+    # out_dir = None
+# # 
+    # run_circuit_sampling(graph_dir, circuit_method, substate_size_fac=substate_size_fac, substate_size=substate_size, star_states=star_states, binary_merge=binary_merge, out_dir=out_dir, overwrite_results=False)
+# 
+    # circuit_method = "merge_parallel"
+    # substate_size_fac = 0.2
+    # substate_size = None
+    # star_states = False
+    # binary_merge = False
+    # 
+    # graph_dir = os.path.join(os.getcwd(), "graph_samples/random_graph_endros_renyi_1/")
+    # out_dir = None
+# # 
+    # run_circuit_sampling(graph_dir, circuit_method, substate_size_fac=substate_size_fac, substate_size=substate_size, star_states=star_states, binary_merge=binary_merge, out_dir=out_dir, overwrite_results=False)
+
+    # circuit_method = "merge_parallel"
+    # substate_size_fac = 0.4
+    # substate_size = None
+    # star_states = False
+    # binary_merge = False
+    # 
+    # graph_dir = os.path.join(os.getcwd(), "graph_samples/random_graph_endros_renyi_1/")
+    # out_dir = None
+# 
+    # run_circuit_sampling(graph_dir, circuit_method, substate_size_fac=substate_size_fac, substate_size=substate_size, star_states=star_states, binary_merge=binary_merge, out_dir=out_dir, overwrite_results=False)
+
 
     # result_dirs = [os.path.join(os.getcwd(), "simulation_results/sample_circuits/random_graphs_endros_renyi_p0.4/circuit_method_grow"),
     #                os.path.join(os.getcwd(), "simulation_results/sample_circuits/random_graphs_endros_renyi_p0.4/circuit_method_merge_parallel")]
@@ -729,10 +764,31 @@ if __name__ == "__main__":
     # fname_tar = "circuit_method_merge_parallel_non-bin_substate_none_ghz.tar.gz"
     # create_data_subset_tar(result_dir, output_dir, fname_tar=fname_tar)
 
-    # result_dir = os.path.join(os.getcwd(), "graph_samples/random_graph_endros_renyi_1/circuit_sampling_results/circuit_method_merge_parallel_non-bin_substate_none_ghz")
+    # result_dir = os.path.join(os.getcwd(), "graph_samples/random_graph_endros_renyi_1/circuit_sampling_results/circuit_method_merge_parallel_non-bin_substate_0.4_ghz")
+    # output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_random_graph_endros_renyi_1_p0.1/")
+    # fname_tar = "circuit_method_merge_parallel_non-bin_substate_0.4_ghz.tar.gz"
+    # create_data_subset_tar(result_dir, output_dir, fname_tar=fname_tar, p=0.1)
+    # result_dir = os.path.join(os.getcwd(), "graph_samples/random_graph_endros_renyi_1/circuit_sampling_results/circuit_method_merge_parallel_non-bin_substate_0.4_ghz")
+    # output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_random_graph_endros_renyi_1_p0.5/")
+    # fname_tar = "circuit_method_merge_parallel_non-bin_substate_0.4_ghz.tar.gz"
+    # create_data_subset_tar(result_dir, output_dir, fname_tar=fname_tar, p=0.5)
+    # result_dir = os.path.join(os.getcwd(), "graph_samples/random_graph_endros_renyi_1/circuit_sampling_results/circuit_method_merge_parallel_non-bin_substate_0.4_ghz")
     # output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_random_graph_endros_renyi_1_p1.0/")
-    # fname_tar = "circuit_method_merge_parallel_non-bin_substate_none_ghz.tar.gz"
+    # fname_tar = "circuit_method_merge_parallel_non-bin_substate_0.4_ghz.tar.gz"
     # create_data_subset_tar(result_dir, output_dir, fname_tar=fname_tar, p=1.0)
+# 
+    # result_dir = os.path.join(os.getcwd(), "graph_samples/random_graph_endros_renyi_1/circuit_sampling_results/circuit_method_merge_parallel_non-bin_substate_0.4_ghz")
+    # output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_random_graph_endros_renyi_1_n25/")
+    # fname_tar = "circuit_method_merge_parallel_non-bin_substate_0.4_ghz.tar.gz"
+    # create_data_subset_tar(result_dir, output_dir, fname_tar=fname_tar, n=25)
+    # result_dir = os.path.join(os.getcwd(), "graph_samples/random_graph_endros_renyi_1/circuit_sampling_results/circuit_method_merge_parallel_non-bin_substate_0.4_ghz")
+    # output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_random_graph_endros_renyi_1_n208/")
+    # fname_tar = "circuit_method_merge_parallel_non-bin_substate_0.4_ghz.tar.gz"
+    # create_data_subset_tar(result_dir, output_dir, fname_tar=fname_tar, n=208)
+    # result_dir = os.path.join(os.getcwd(), "graph_samples/random_graph_endros_renyi_1/circuit_sampling_results/circuit_method_merge_parallel_non-bin_substate_0.4_ghz")
+    # output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_random_graph_endros_renyi_1_n400/")
+    # fname_tar = "circuit_method_merge_parallel_non-bin_substate_0.4_ghz.tar.gz"
+    # create_data_subset_tar(result_dir, output_dir, fname_tar=fname_tar, n=400)
 
 
     #output_dir = os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_random_graph_endros_renyi_1_n400/circuit_method_grow")
@@ -772,12 +828,12 @@ if __name__ == "__main__":
     # 
     # plot_all_datasets_tars(output_dir, ["state growing"], xdata_str="num_qubits", xlabel="number of qubits", title="Random subgraph sampling from rectangular grid layout", fname_pre=os.path.join(os.getcwd(),"graph_samples_eval/circuit_sampling_layout_graph_rect_grid_1/test_tarball"))
 
-    output_dir = [os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_random_graph_endros_renyi_1_p1.0/circuit_method_grow.tar.gz"),
-                  os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_random_graph_endros_renyi_1_p1.0/circuit_method_merge_parallel_non-bin_substate_0.7_ghz.tar.gz"),
-                  os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_random_graph_endros_renyi_1_p1.0/circuit_method_merge_parallel_non-bin_substate_1.0_ghz.tar.gz"),
-                  os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_random_graph_endros_renyi_1_p1.0/circuit_method_merge_parallel_non-bin_substate_1.3_ghz.tar.gz"),
-                  os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_random_graph_endros_renyi_1_p1.0/circuit_method_merge_parallel_non-bin_substate_none_ghz.tar.gz")]
- 
-    plot_all_datasets_tars(output_dir, ["state growing", "merge parallel non-binary, size_fac=0.7", "merge parallel non-binary, size_fac=1.0", "merge parallel non-binary, size_fac=1.3", "merge parallel non-binary, size=hd"], xdata_str="num_qubits", xlabel="number of qubits", title="Random Endros-Renyi graph sampling for p=1.0", fname_pre=os.path.join(os.getcwd(),"graph_samples_eval/circuit_sampling_random_graph_endros_renyi_1_p1.0/circuit_sampling_eval_random_graph_endros_renyi_1_p1.0"))
+    # output_dir = [os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_random_graph_endros_renyi_1_p1.0/circuit_method_grow.tar.gz"),
+    #               os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_random_graph_endros_renyi_1_p1.0/circuit_method_merge_parallel_non-bin_substate_0.7_ghz.tar.gz"),
+    #               os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_random_graph_endros_renyi_1_p1.0/circuit_method_merge_parallel_non-bin_substate_1.0_ghz.tar.gz"),
+    #               os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_random_graph_endros_renyi_1_p1.0/circuit_method_merge_parallel_non-bin_substate_1.3_ghz.tar.gz"),
+    #               os.path.join(os.getcwd(), "graph_samples_eval/circuit_sampling_random_graph_endros_renyi_1_p1.0/circuit_method_merge_parallel_non-bin_substate_none_ghz.tar.gz")]
+ # 
+    # plot_all_datasets_tars(output_dir, ["state growing", "merge parallel non-binary, size_fac=0.7", "merge parallel non-binary, size_fac=1.0", "merge parallel non-binary, size_fac=1.3", "merge parallel non-binary, size=hd"], xdata_str="num_qubits", xlabel="number of qubits", title="Random Endros-Renyi graph sampling for p=1.0", fname_pre=os.path.join(os.getcwd(),"graph_samples_eval/circuit_sampling_random_graph_endros_renyi_1_p1.0/circuit_sampling_eval_random_graph_endros_renyi_1_p1.0"))
 
 
