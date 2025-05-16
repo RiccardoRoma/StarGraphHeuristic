@@ -317,22 +317,23 @@ def create_samples_random_graph(output_dir: str,
             pickle.dump(curr_graph, f)
 
 if __name__=="__main__":
-    graph_sizes = np.linspace(10, 400, 50, dtype=int)
-    dir = os.path.join(os.getcwd(), "graph_samples/random_graph_endros_renyi_1/")
-    #p_list = [0.1, 0.4, 0.7, 1.0]
-    p_list = np.round(np.linspace(0.05, 1.0, 20), 2) # round to two decimal places
-    #p_list = [0.1]
-    # samples = 10
-    samples = list(range(10, 100)) # increase samples to 100
-# 
-    create_samples_random_graph(dir, graph_sizes, p_list, samples=samples, use_barabasi=False)
+    # graph_sizes = np.linspace(10, 400, 50, dtype=int)
+    # dir = os.path.join(os.getcwd(), "graph_samples/random_graph_endros_renyi_1/")
+    # #p_list = [0.1, 0.4, 0.7, 1.0]
+    # p_list = np.round(np.linspace(0.05, 1.0, 20), 2) # round to two decimal places
+    # #p_list = [0.1]
+    # # samples = 10
+    # samples = list(range(10, 100)) # increase samples to 100
+#
+    # create_samples_random_graph(dir, graph_sizes, p_list, samples=samples, use_barabasi=False)
 
-    # graph_sizes = np.linspace(10, 127, 10, dtype=int)
-    # dir = os.path.join(os.getcwd(), "graph_samples/layout_graph_ibm_brisbane_1/")
-    # samples = 10
-    # samples = list(range(10, 101)) # increase samples to 100
+    #graph_sizes = np.linspace(10, 127, 10, dtype=int)
+    graph_sizes = np.linspace(6, 16, 6, dtype=int)
+    dir = os.path.join(os.getcwd(), "graph_samples/layout_graph_ibm_brisbane_2/")
+    samples = 100
+    #samples = list(range(10, 101)) # increase samples to 100
 # 
-    # create_samples_ibm_layout_graph(dir, graph_sizes, "ibm_brisbane", use_premium_access=False, samples=samples)
+    create_samples_ibm_layout_graph(dir, graph_sizes, "ibm_brisbane", use_premium_access=False, samples=samples)
 
     # height = 4
     # width = 6
