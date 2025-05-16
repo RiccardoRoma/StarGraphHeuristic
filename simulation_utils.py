@@ -929,12 +929,17 @@ def get_backend(service: QiskitRuntimeService,
                 if print_status:
                     print("Loaded basis gate set from noise model!")
 
+        # extract simulation method from backend options. Defaults to "automatic" which means to choose method based on circuits and noise model
+        method = backend_opt.get("method", None)
+        if method is None:
+            method = "automatic"
+
         # limit number of qubits to coupling map
         if coupling_map is not None:
             num_qubits = len(coupling_map.physical_qubits)
-            backend = AerSimulator(method="automatic", n_qubits=num_qubits, noise_model=noise_model, coupling_map=coupling_map, basis_gates=native_basis_gates)
+            backend = AerSimulator(method=method, n_qubits=num_qubits, noise_model=noise_model, coupling_map=coupling_map, basis_gates=native_basis_gates)
         else:
-            backend = AerSimulator(method="automatic", noise_model=noise_model, coupling_map=coupling_map, basis_gates=native_basis_gates)
+            backend = AerSimulator(method=method, noise_model=noise_model, coupling_map=coupling_map, basis_gates=native_basis_gates)
     elif "fake" in backend_str:
         # consistency check
         if noise_model_id != 0:
@@ -965,6 +970,13 @@ def get_backend(service: QiskitRuntimeService,
         if backend_opt["run_locally"]:
             # simulate hardware backend with aer simulator locally
             backend = AerSimulator.from_backend(service.backend(backend_str))
+
+            # extract simulation method from backend options.
+            method = backend_opt.get("method", None)
+            if method:
+                # set method explicitly if given as input
+                backend.set_option("method", method)
+            
             if print_status:
                 print("Start simulation runs with real ibm backend in local testing mode with Aer simulator...")
                 print("Load noise model, coupling map and basis gate set from real backend {}!".format(backend_str))
@@ -1094,7 +1106,7 @@ def load_circuits_from_file(circ_files: list[str]) -> list[QuantumCircuit]:
 
     return circuits
 
-def run_circuits(circ_list: list[QuantumCircuit], observables: list[SparsePauliOp], cal_dict: dict, result_dir: str = "", sim_id: str = "") -> tuple[PrimitiveResult, list[tuple[QuantumCircuit, SparsePauliOp]]]:
+def run_circuits(circ_list: list[QuantumCircuit], observables: list[SparsePauliOp], cal_dict: dict, result_dir: str = "", sim_id: str = "", num_parallel_threads: int = 0, num_parallel_circuits: int = 1, num_parallel_shots: int = 0) -> tuple[PrimitiveResult, list[tuple[QuantumCircuit, SparsePauliOp]]]:
     """Run the list of circuits on a defined backend with qiskit_ibm_runtime.Estimator. This includes a intermediate transpilation step
 
     Args:
@@ -1103,6 +1115,11 @@ def run_circuits(circ_list: list[QuantumCircuit], observables: list[SparsePauliO
         cal_dict: dictionary containing the backend calibration, transpilation calibration (passmanager), estimator calibration.
         result_dir: path/to/result_dir in which the calibration dictionary, noise model, coupling map and primitive result should be saved. Defaults to "" which means no saving.
         sim_id: identifier string for this run (used for saving files in result_dir). Defaults to "".
+
+        Note that the following arguments have no influence if the chosen backend is not an AerSimulator instance.
+        num_parallel_threads: Argument for Aer Simulator backend to run circuits or shots in parallel. Number of CPU cores used by OpenMP. If set to 0 the value will be set to the number of available CPU cores, in Aer Simulator. Defaults to 0.
+        num_parallel_circuits: Argument for Aer Simulator backend to run circuits in parallel. Sets the maximum number of circuits that may be executed in parallel up to the num_parallel_threads value. If set to 1 parallel circuit execution will be disabled. If set to 0 the maximum will be automatically set to num_parallel_threads. Defaults to 1.
+        num_parallel_shots: Argument for Aer Simulator backend to run shots in parallel. Sets the maximum number of shots that may be executed in parallel during each circuit execution, up to the num_parallel_threads value. If set to 1 parallel shot execution will be disabled. If set to 0 the maximum will be automatically set to num_parallel_threads. Note that this cannot be enabled at the same time as parallel circuit execution. Defaults to 0.
 
     Raises:
         ValueError: If calibration file name does not exist or if loaded calibration dictionary is None.
@@ -1161,7 +1178,8 @@ def run_circuits(circ_list: list[QuantumCircuit], observables: list[SparsePauliO
     coupling_map_str = cal_dict["coupling_map_str"]
     native_basis_gates_str = cal_dict["native_basis_gates_str"]
     # setup backend options
-    backend_opt = {"backend_str": backend_str, 
+    backend_opt = {"backend_str": backend_str,
+                   "method": cal_dict.get("method", None),
                    "noise_model_id": noise_model_id, 
                    "fname_noise_model": fname_noise_model, 
                    "noise_model_str": noise_model_str,
@@ -1175,6 +1193,12 @@ def run_circuits(circ_list: list[QuantumCircuit], observables: list[SparsePauliO
     
     # load backend from passmanager calibration
     backend = get_backend(service, backend_opt)
+
+    # add options for parallel execution if backend is an AerSimulator instance
+    if isinstance(backend, AerSimulator):
+        backend.set_option('max_parallel_threads', num_parallel_threads)
+        backend.set_option('max_parallel_experiments', num_parallel_circuits)
+        backend.set_option('max_parallel_shots', num_parallel_shots)
     
     # get noise model from backend
     noise_model = backend.options.get("noise_model", None)

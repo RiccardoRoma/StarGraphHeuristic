@@ -6,8 +6,11 @@ import simulation_utils as utils
 from qiskit import qpy
 import pickle
 import yaml
+import time
 
 if __name__ == "__main__":
+    # Get the number of allocated CPUs
+    num_cpus = int(os.getenv('SLURM_CPUS_PER_TASK', 2))
     # Setup argument parser to read in required inputs from cmd line
     parser = argparse.ArgumentParser(description='Script to run heuristic circuit for generating GHZ state on IBM hardware')
     parser.add_argument('simulation_id', metavar='id', type=str, help='a unique id for this simulation run')
@@ -75,7 +78,12 @@ if __name__ == "__main__":
     
 
     # run circuits 
-    est_result, transp_circs_obs_pairs = utils.run_circuits(circ_list, observables, cal_dict, result_dir=result_dir, sim_id=sim_id)
+    print("Running {} circuits with {} CPU cores".format(len(circ_list), num_cpus))
+    start_time = time.time() # save start time
+    est_result, transp_circs_obs_pairs = utils.run_circuits(circ_list, observables, cal_dict, result_dir=result_dir, sim_id=sim_id, num_parallel_threads=num_cpus)
+    end_time = time.time() # save end time
+    duration = end_time - start_time # duration of transpilation
+    print(f"Total time for parallel processing: {duration:.4f} seconds")
     
     if len(circ_list) != len(transp_circs_obs_pairs):
         raise ValueError("number of transpied circuits and observables does not match number of input circuits!")
