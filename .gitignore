@@ -52,3 +52,6 @@ ipython_config.py
 test_subgraph_func_sid.py
 
 /graph_samples/*
+
+# slurm submission scripts
+/slurm_submission/*
