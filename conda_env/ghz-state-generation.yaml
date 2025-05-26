@@ -17,9 +17,9 @@ dependencies:
       - ipykernel==6.29.2
       - pyyaml==6.0.1
       - python-dotenv==1.0.0
-      - qiskit==1.2.4
-      - qiskit-aer==0.15.1
-      - qiskit-ibm-runtime==0.31.0
+      - qiskit==1.4.2
+      - qiskit-aer==0.17.0
+      - qiskit-ibm-runtime==0.37.0
       - qiskit-ibm-provider==0.11.0
       - networkx==3.2.1
       - pylatexenc==2.10

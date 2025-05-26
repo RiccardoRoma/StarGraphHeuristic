@@ -2,24 +2,22 @@ from __future__ import annotations
 import abc
 import numpy as np
 from importlib.metadata import version
-from typing import Callable, Dict, List, Optional, Tuple, Union
-from collections.abc import Iterable, Sequence
+from typing import Dict, List, Tuple, Union
 import copy
 import os
 import pickle
 import yaml
 import traceback as tb
 from networkx import Graph
-from qiskit.primitives import BaseEstimator
-from qiskit.primitives import Estimator as TerraEstimator
-from qiskit.primitives import BackendEstimator as BackendEstimator
-from qiskit.providers import BackendV1, BackendV2
-from qiskit_ibm_runtime.fake_provider import FakeProviderForBackendV2, FakeManilaV2, FakeFractionalBackend
+from qiskit.primitives import BaseEstimatorV2
+#from qiskit.primitives import Estimator as TerraEstimator
+from qiskit.primitives import BackendEstimatorV2 as BackendEstimator
+from qiskit.providers import BackendV2
+from qiskit_ibm_runtime.fake_provider import FakeProviderForBackendV2
 from qiskit_ibm_runtime import QiskitRuntimeService
 from qiskit_aer.primitives import Estimator as AerEstimator
 from qiskit_aer import AerSimulator
-from qiskit_aer.noise import NoiseModel, QuantumError
-from qiskit_aer.noise.device import basic_device_gate_errors, basic_device_readout_errors
+from qiskit_aer.noise import NoiseModel
 
 from qiskit.transpiler import PassManager, StagedPassManager, CouplingMap
 from qiskit.transpiler.passes import RemoveBarriers
@@ -29,7 +27,9 @@ from qiskit.circuit.library import XGate
 from qiskit.circuit import QuantumCircuit
 
 import qiskit_ibm_runtime as qir
-from qiskit_ibm_provider import IBMProvider
+from qiskit_ibm_runtime import SamplerV2 as IBMSampler
+#from qiskit_ibm_provider import IBMProvider
+from qiskit_ibm_runtime.options import SamplerOptions
 from qiskit_ibm_runtime.options.utils import Unset
 from dotenv import load_dotenv
 from qiskit.circuit import Qubit
@@ -361,7 +361,7 @@ def _get_estimator_options(est_cal_in: EstimatorCalibration,
             simulator_options["coupling_map"] = coupling_map if coupling_map is not None else Unset
             simulator_options["basis_gates"] = basis_gates
             options = qir.options.EstimatorOptions(default_shots = est_cal.default_shots,
-                                                   optimization_level=est_cal.optimization_level, 
+                                                   #optimization_level=est_cal.optimization_level, 
                                                    resilience_level=est_cal.resilience_level, 
                                                    seed_estimator = est_cal.seed_estimator,
                                                    dynamical_decoupling = est_cal.dynamical_decoupling_options,
@@ -374,7 +374,7 @@ def _get_estimator_options(est_cal_in: EstimatorCalibration,
                                                    experimental = Unset)
         else:
             options = qir.options.EstimatorOptions(default_shots = est_cal.default_shots,
-                                                   optimization_level=est_cal.optimization_level, 
+                                                   #optimization_level=est_cal.optimization_level, 
                                                    resilience_level=est_cal.resilience_level, 
                                                    seed_estimator = est_cal.seed_estimator,
                                                    dynamical_decoupling = est_cal.dynamical_decoupling_options,
@@ -391,7 +391,7 @@ def _get_estimator_options(est_cal_in: EstimatorCalibration,
     
 
 def get_estimator(est_cal: EstimatorCalibration,
-                  mode: Union[qir.Session, qir.Batch, BackendV2, None] = None) -> BaseEstimator:
+                  mode: Union[qir.Session, qir.Batch, BackendV2, None] = None) -> BaseEstimatorV2:
     if est_cal.estimator_str == "aer":
         est = AerEstimator(backend_options=est_cal.backend_options, 
                            transpile_options=est_cal.transpilation_options, 
@@ -1010,7 +1010,7 @@ def transpile_circuits(staged_passmanager: StagedPassManager,
                 curr_best = curr_transp.copy()
                 
         # check if if_else blocks have been transpiled correctly, and fix it if not
-        verify_if_else_params_in_transp_circ(curr_best)
+        #verify_if_else_params_in_transp_circ(curr_best)
 
         ## To-Do: add options to check that final layout (circuit.layout) corresponds to initial layout
 
@@ -1294,3 +1294,240 @@ def run_circuits(circ_list: list[QuantumCircuit], observables: list[SparsePauliO
             pickle.dump(est_result, f)
 
     return est_result, circ_obs_pairs
+
+# get sampler options
+def get_sampler_options(sampler_opt_dict: dict,
+                        use_simulator: bool = True) -> SamplerOptions:
+    # handle qiskit ibm runtime UnsetType class for sampler options
+    if sampler_opt_dict["simulator_options"]["seed_simulator"] is None:
+        sampler_opt_dict["simulator_options"]["seed_simulator"] = Unset
+    if sampler_opt_dict["simulator_options"]["noise_model"] is None:
+        sampler_opt_dict["simulator_options"]["noise_model"] = Unset
+    if sampler_opt_dict["simulator_options"]["coupling_map"] is None:
+        sampler_opt_dict["simulator_options"]["coupling_map"] = Unset
+    if sampler_opt_dict["simulator_options"]["basis_gates"] is None:
+        sampler_opt_dict["simulator_options"]["basis_gates"] = Unset
+        
+    if sampler_opt_dict["execution_options"]["rep_delay"] is None:
+        sampler_opt_dict["execution_options"]["rep_delay"] = Unset
+        
+    
+    if sampler_opt_dict["experimental_options"] is None:
+        sampler_opt_dict["experimental_options"] = Unset
+    
+    if sampler_opt_dict["max_execution_time"] is None:
+        sampler_opt_dict["max_execution_time"] = Unset
+
+    # apply dynamical decoupling seperatly because sampler internal DD option seems to be not working
+    sampler_dd_options = sampler_opt_dict.get("dynamical_decoupling_options", None)
+    if sampler_dd_options:
+        raise ValueError("Dynamical decoupling has to be applied during transpilation with passmanager. Internal application within the sampler primitive seems to be not working correctly and is thus disabled.")
+    else:
+        sampler_dd_options = {"enable": False, "sequence_type": "XX", "scheduling_method": "alap"}
+
+    if use_simulator:
+        # simulator options are only supported if the backend is a local simulator backend and not hardware
+        sampler_opt = SamplerOptions(default_shots = sampler_opt_dict["default_shots"], 
+                                     dynamical_decoupling = sampler_dd_options, 
+                                     environment = sampler_opt_dict["environment_options"],
+                                     execution = sampler_opt_dict["execution_options"],
+                                     experimental = sampler_opt_dict["experimental_options"],
+                                     max_execution_time = sampler_opt_dict["max_execution_time"],
+                                     simulator = sampler_opt_dict["simulator_options"],
+                                     twirling = sampler_opt_dict["twirling_options"])
+    else:
+        # skip simulator options for hardware run
+        sampler_opt = SamplerOptions(default_shots = sampler_opt_dict["default_shots"], 
+                                     dynamical_decoupling = sampler_dd_options, 
+                                     environment = sampler_opt_dict["environment_options"],
+                                     execution = sampler_opt_dict["execution_options"],
+                                     experimental = sampler_opt_dict["experimental_options"],
+                                     max_execution_time = sampler_opt_dict["max_execution_time"],
+                                     twirling = sampler_opt_dict["twirling_options"])
+    
+    return sampler_opt
+
+def run_circuits_sampler(circ_list: list[QuantumCircuit], cal_dict: dict, result_dir: str = "", sim_id: str = "", num_parallel_threads: int = 0, num_parallel_circuits: int = 1, num_parallel_shots: int = 0)-> tuple[PrimitiveResult, list[QuantumCircuit]]:
+    """Run the list of circuits on a defined backend with qiskit_ibm_runtime.SamplerV2. This includes a intermediate transpilation step
+
+    Args:
+        circ_list: list of quantum circuits that should be ran
+        cal_dict: dictionary containing the backend calibration, transpilation calibration (passmanager), estimator calibration.
+        result_dir: path/to/result_dir in which the calibration dictionary, noise model, coupling map and primitive result should be saved. Defaults to "" which means no saving.
+        sim_id: identifier string for this run (used for saving files in result_dir). Defaults to "".
+
+        Note that the following arguments have no influence if the chosen backend is not an AerSimulator instance.
+        num_parallel_threads: Argument for Aer Simulator backend to run circuits or shots in parallel. Number of CPU cores used by OpenMP. If set to 0 the value will be set to the number of available CPU cores, in Aer Simulator. Defaults to 0.
+        num_parallel_circuits: Argument for Aer Simulator backend to run circuits in parallel. Sets the maximum number of circuits that may be executed in parallel up to the num_parallel_threads value. If set to 1 parallel circuit execution will be disabled. If set to 0 the maximum will be automatically set to num_parallel_threads. Defaults to 1.
+        num_parallel_shots: Argument for Aer Simulator backend to run shots in parallel. Sets the maximum number of shots that may be executed in parallel during each circuit execution, up to the num_parallel_threads value. If set to 1 parallel shot execution will be disabled. If set to 0 the maximum will be automatically set to num_parallel_threads. Note that this cannot be enabled at the same time as parallel circuit execution. Defaults to 0.
+
+    Raises:
+        ValueError: If calibration file name does not exist or if loaded calibration dictionary is None.
+        ValueError: If keyword for observable generation is unkown.
+        ValueError: if mode string identifier does not match any supported execution mode.
+
+    Returns:
+        Sampler primitive result, transpiled circuits
+    """    
+
+    # save the used calibration dictionary to result dir
+    if result_dir:
+        fname_cal = f"sim_{sim_id}_calibration.yaml"
+        fname_cal = os.path.join(result_dir, fname_cal)
+        with open(fname_cal, "w") as f:
+            yaml.dump(cal_dict, f)
+
+    # load sampler options as dict
+    sampler_opt_dict = cal_dict.get("sampler_options", None)
+    if sampler_opt_dict is None:
+        raise ValueError("No sampler options subdictionary found in calibration dictionary!")
+    else:
+        # create deepcopy to avoid changing the initial dictionary
+        sampler_opt_dict = copy.deepcopy(sampler_opt_dict)
+
+    # extract measurement shots
+    meas_shots = sampler_opt_dict["default_shots"]
+    
+    use_premium_access = cal_dict["use_premium_access"]
+    mode_str = cal_dict.get("execution_mode", "backend") # execute in backend mode by default
+    backend_str = cal_dict["backend_str"]
+    noise_model_id = cal_dict["noise_model_id"]
+    fname_noise_model = cal_dict["fname_noise_model"]
+    #fname_noise_model = os.path.join(result_dir, fname_noise_model)
+    noise_model_str = cal_dict["noise_model_str"]
+    coupling_map_id = cal_dict["coupling_map_id"]
+    fname_coupling_map = cal_dict["fname_coupling_map"]
+    #fname_coupling_map = os.path.join(result_dir, fname_coupling_map)
+    coupling_map_str = cal_dict["coupling_map_str"]
+    native_basis_gates_str = cal_dict["native_basis_gates_str"]
+    # setup backend options
+    backend_opt = {"backend_str": backend_str,
+                   "method": cal_dict.get("method", None),
+                   "noise_model_id": noise_model_id, 
+                   "fname_noise_model": fname_noise_model, 
+                   "noise_model_str": noise_model_str,
+                   "coupling_map_id": coupling_map_id,
+                   "fname_coupling_map": fname_coupling_map,
+                   "coupling_map_str": coupling_map_str,
+                   "native_basis_gates_str": native_basis_gates_str,
+                   "run_locally": cal_dict["run_locally"]}
+    # load IBM Quantum credentials
+    service = load_ibm_credentials(premium_access=use_premium_access)
+    
+    # load backend from passmanager calibration
+    backend = get_backend(service, backend_opt)
+
+    # add options for parallel execution if backend is an AerSimulator instance
+    if isinstance(backend, AerSimulator):
+        backend.set_option('max_parallel_threads', num_parallel_threads)
+        backend.set_option('max_parallel_experiments', num_parallel_circuits)
+        backend.set_option('max_parallel_shots', num_parallel_shots)
+    
+    # get noise model from backend
+    noise_model = backend.options.get("noise_model", None)
+    if noise_model is None:
+        noise_model = NoiseModel.from_backend(backend)
+    
+
+    # add backend noise model, coupling map and basis gates to sampler options
+    sampler_opt_dict["simulator_options"]["noise_model"] = noise_model
+    sampler_opt_dict["simulator_options"]["coupling_map"] = backend.coupling_map
+    sampler_opt_dict["simulator_options"]["basis_gates"] = NoiseModel.from_backend(backend).basis_gates
+
+    # get passmanager calibration
+    pm_cal_dict = cal_dict.get("passmanager_calibration", None)
+
+    if pm_cal_dict is None:
+        raise ValueError("Something went wrong while reading in yml text file! No passmanager subdictionary found!")
+    else:
+        # create deepcopy to avoid changing the initial dictionary
+        pm_cal_dict = copy.deepcopy(pm_cal_dict)
+    
+    # get qiskit_ibm_runtime.options.SamplerOptions
+    sampler_opt = get_sampler_options(sampler_opt_dict, use_simulator=cal_dict["run_locally"])
+
+    # save noise model if not already done
+    if result_dir:
+        if noise_model:
+            if not noise_model.is_ideal():
+                curr_file = os.path.join(result_dir, fname_noise_model)
+                if not os.path.isfile(curr_file):
+                    with open(curr_file, "wb") as f:
+                        pickle.dump(noise_model,f)
+    
+    # save coupling map if not already done
+    coupling_map = backend.coupling_map
+    if result_dir:
+        if coupling_map:
+            curr_file = os.path.join(result_dir, fname_coupling_map)
+            if not os.path.isfile(curr_file):
+                with open(curr_file, "wb") as f:
+                    pickle.dump(coupling_map,f)
+    print("Loaded backend!")
+
+    
+    pm_cal = get_PresetPassManagerCalibration_from_dict(pm_cal_dict)
+
+    # add initial layout to passmanager calibration
+    if pm_cal.initial_layout is not None:
+        print("Warning: Initial layout of passmanager calibration is not None but will be overwritten due to algorithm.")
+
+    # find all different qubit numbers and group circuits accordingly, for transpilation
+    indexed_circuits = list(enumerate(circ_list))
+
+    num_qubits_groups = defaultdict(list)
+    index_map = defaultdict(list)
+    for idx, circ in indexed_circuits:
+        num_qubits_groups[circ.num_qubits].append(circ)
+        index_map[circ.num_qubits].append(idx)
+
+    # transpile circuits
+    processed_groups = {}
+    for num_qubits, circ_group in num_qubits_groups.items():
+        init_layout = list(range(num_qubits)) # list of all qubits, i.e., a trivial layout i -> i
+        pm_cal.initial_layout = init_layout
+        # create pass manager from calibration
+        pass_manager = get_passmanager(backend, pm_cal)
+        # transpile circuit with passmanager
+        processed_groups[num_qubits] = transpile_circuits(pass_manager, circ_group, transpilation_trials=pm_cal.transpilation_trials, remove_barriers=True)
+    print("Transpiled circuits!")
+
+    # reverse grouping of the transpiled circuits
+    transp_circ_list = [None] * len(circ_list)
+    for num_qubits, transp_circ_group in processed_groups.items():
+        for idx, circ in zip(index_map[num_qubits], transp_circ_group):
+            transp_circ_list[idx] = circ
+
+    # run circuit, observable pairs with IBM estimator
+    sampler_result = None
+    if mode_str=="backend":
+        # create sampler from options
+        sampler = IBMSampler(mode=backend, options=sampler_opt)
+        job = sampler.run(transp_circ_list, shots=meas_shots)
+        sampler_result = job.result()
+    elif mode_str=="batch":
+        batch = Batch(backend=backend)
+        # create sampler from options
+        sampler = IBMSampler(mode=batch, options=sampler_opt)
+        job = sampler.run(transp_circ_list, shots=meas_shots)
+        sampler_result = job.result()
+        batch.close()
+    elif mode_str=="session":
+        session = Session(backend=backend)
+        # create sampler from options
+        sampler = IBMSampler(mode=session, options=sampler_opt)
+        job = sampler.run(transp_circ_list, shots=meas_shots)
+        sampler_result = job.result()
+        session.close()
+
+    print("Finished running circuits!")
+
+    # save primitive result to result dir
+    if result_dir:
+        # pickle sampler result
+        fname_smpl_result = f"sim_{sim_id}_sampler_result.pickle"
+        fname_smpl_result = os.path.join(result_dir, fname_smpl_result)
+        with open(fname_smpl_result, "wb") as f:
+            pickle.dump(sampler_result, f)
+
+    return sampler_result, transp_circ_list

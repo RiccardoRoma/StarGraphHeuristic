@@ -3,7 +3,8 @@ import math
 # import networkx as nx
 # from networkx import Graph
 # import create_ghz_state_circuit as cgsc
-from qiskit.quantum_info import SparsePauliOp
+from qiskit.quantum_info import SparsePauliOp, hellinger_fidelity
+from qiskit.primitives import BitArray
 import copy
 
 
@@ -126,3 +127,23 @@ def fidelity_full(n_qbs:int, ob_qbs: list[int]) -> SparsePauliOp:
 
     fidelity = G_o.dot(G_e)
     return fidelity
+
+def ghz_hellinger_fidelity(bit_arr: BitArray) -> float:
+    """Calculate the Hellinger fidelity of a given bitarray with the corresponding ghz state count distribution.
+
+    Args:
+        bit_arr: count data in form of a bitarray for which the fidelity with a ghz state should be calculated.
+
+    Returns:
+        Hellinger fidelity value
+    """
+    # extract number of bits and number of shots from bit array
+    num_bits = bit_arr.num_bits
+    num_shots = bit_arr.num_shots
+
+    # get counts dictionary from bit array
+    p_cnts = bit_arr.get_int_counts()
+    # construct ghz counts dictionary with used number of shots
+    ghz_cnts = {0: num_shots//2, 2**num_bits-1: num_shots-num_shots//2}
+    
+    return hellinger_fidelity(p_cnts, ghz_cnts)
