@@ -248,6 +248,10 @@ def merge_ghz_circ_linear(circ: QuantumCircuit, graph_set: list[Graph], merging_
             curr_meas = ClassicalRegister(1, "m"+str(cls_bit_cnt))
             circ.add_register(curr_meas)
             circ.measure(edge[1], curr_meas)
+            # include measured qubit into merged graph state again (if desired)
+            # This operation commutes with the Pauli corrections (PC's) and is moved from the end to here (before PC's) to potentially reduce the circuit depth
+            if reuse_meas_qubit:
+                circ.cx(edge[0], edge[1])
             # update classical bit for measurements
             cls_bit_cnt += 1
             # save this merge to apply pauli corrections and reuse qubits
@@ -268,10 +272,10 @@ def merge_ghz_circ_linear(circ: QuantumCircuit, graph_set: list[Graph], merging_
                 # flip qubit into state 0 if it was projected to 1 and qubit is resused 
                 circ.x(edge[1])
     
-    # include measured qubit into merged graph state again (if desired)
-    if reuse_meas_qubit:        
-        for graph1, graph2, edge, cls_bit in meas_merged:
-            circ.cx(edge[0], edge[1])
+    # # include measured qubit into merged graph state again (if desired)
+    # if reuse_meas_qubit:        
+    #     for graph1, graph2, edge, cls_bit in meas_merged:
+    #         circ.cx(edge[0], edge[1])
 
     return circ, cls_bit_cnt
 
