@@ -68,7 +68,7 @@ def load_data_from_tar(archive_path):
                         print(f"Skipping {member.name}: {e}")
     return data_by_x
 
-def compute_weighted_averages(data_by_x):
+def compute_averages(data_by_x):
     """Compute the average and the standard error of the mean (sem) of a data dictionary. 
 
     Args:
@@ -140,7 +140,10 @@ def plot_average_fidelities_from_archives(
     msize = 10
     lw = 2
 
-    plt.figure(figsize=figsize)
+    fig = plt.figure(figsize=figsize)
+
+    x_min = None
+    x_max = None
 
     for idx, archive_path in enumerate(archives):
         label = (
@@ -153,7 +156,21 @@ def plot_average_fidelities_from_archives(
         linestyle = next(linestyles)
 
         data = load_data_from_tar(archive_path)
-        x, y, yerr = compute_weighted_averages(data)
+        x, y, yerr = compute_averages(data)
+
+        if x_max:
+            curr_max = np.max(x)
+            if curr_max > x_max:
+                x_max = curr_max
+        else:
+            x_max = np.max(x)
+
+        if x_min:
+            curr_min = np.min(x)
+            if curr_min < x_min:
+                x_min = curr_min
+        else:
+            x_min = np.min(x)
 
         plt.errorbar(x, y, yerr=yerr, fmt=marker, ms=msize, color=color, label=label, capsize=5)
         plt.plot(x, y, linestyle=linestyle, linewidth=lw, color=color, alpha=0.6)
@@ -162,6 +179,10 @@ def plot_average_fidelities_from_archives(
     plt.ylabel("Average Fidelity")
     plt.title(title)
     plt.legend()
+    plt.ylim(0.0,1.0)
+    ax = plt.gca()
+    ax.set_yticks([i*0.1 for i in range(11)])
+    ax.set_xticks(range(x_min,x_max+1))
     plt.grid(True)
     plt.tight_layout()
     if fname:
@@ -173,7 +194,7 @@ if __name__ == "__main__":
     parser.add_argument("folder", help="Path to folder A or B")
     parser.add_argument("-o", "--output", default="bundled_yaml.tar.gz", help="Output tar.gz file name (default: bundled_yaml.tar.gz)")
     args = parser.parse_args()
-    
+
     bundle_yaml_files(args.folder, args.output)
 
     # archives = ["./graph_samples_eval/circuit_sampling_layout_graph_ibm_brisbane_2/circuit_sampling_fidelity_eval_layout_graph_ibm_brisbane_2_grow_full_noise.tar.gz",
