@@ -328,12 +328,17 @@ if __name__=="__main__":
     # create_samples_random_graph(dir, graph_sizes, p_list, samples=samples, use_barabasi=False)
 
     #graph_sizes = np.linspace(10, 127, 10, dtype=int)
-    graph_sizes = np.linspace(6, 16, 6, dtype=int)
-    dir = os.path.join(os.getcwd(), "graph_samples/layout_graph_ibm_brisbane_2/")
+    #graph_sizes = np.linspace(6, 16, 6, dtype=int)
+    #dir = os.path.join(os.getcwd(), "graph_samples/layout_graph_ibm_brisbane_2/")
+
+    #graph_sizes = np.linspace(10, 156, 12, dtype=int)
+    graph_sizes = np.linspace(6, 18, 7, dtype=int)
+    dir = os.path.join(os.getcwd(), "graph_samples/layout_graph_ibm_kingston_2/")
+
     samples = 100
     #samples = list(range(10, 101)) # increase samples to 100
 # 
-    create_samples_ibm_layout_graph(dir, graph_sizes, "ibm_brisbane", use_premium_access=False, samples=samples)
+    create_samples_ibm_layout_graph(dir, graph_sizes, "ibm_kingston", use_premium_access=True, samples=samples)
 
     # height = 4
     # width = 6
