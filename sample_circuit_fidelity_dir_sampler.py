@@ -37,6 +37,7 @@ from qiskit.circuit import QuantumCircuit
 from qiskit.primitives import PrimitiveResult
 from collections import defaultdict
 import glob
+import time
 
 
 if __name__ == "__main__":
@@ -85,6 +86,7 @@ if __name__ == "__main__":
         curr_circ_file_plt, _ = os.path.splitext(curr_circ_file)
         curr_circ_file_plt = curr_circ_file_plt + ".pdf"
         curr_circ.draw("mpl", filename=curr_circ_file_plt)
+        plt.close("all")
 
         # determine idle qubits in current circuit
         idle_qubits = utils.get_idle_qubits(curr_circ)
@@ -105,12 +107,19 @@ if __name__ == "__main__":
     print("Added fidelity measurements!")
     
     # run circuits 
+    print(f"Runnung {len(circ_list)} circuits...")
+    start_time = time.time() # save start time
     smplr_result, transp_circs = utils.run_circuits_sampler(circ_list, cal_dict, result_dir=result_dir, sim_id=sim_id)
-    
+    end_time = time.time() # save end time
+    duration = end_time -  start_time
+    print(f"Totel time for processing: {duration:.4f} seconds")
+
     if len(circ_list) != len(transp_circs):
         raise ValueError("number of transpied circuits does not match number of input circuits!")
     
     # save results
+    print("Saving the result...")
+    fidelities = []
     for pub_res, transp_circ, init_circ, init_circ_file in zip(smplr_result, transp_circs, circ_list, circ_files):
         curr_file_pream = os.path.splitext(os.path.basename(init_circ_file))[0]
 
@@ -122,10 +131,12 @@ if __name__ == "__main__":
         transp_circ_file, _ = os.path.splitext(transp_circ_file)
         transp_circ_file = transp_circ_file +".pdf"
         transp_circ.draw("mpl", filename=transp_circ_file)
+        plt.close("all")
 
         # calculate the Hellinger fidelity from the bitarray result of the measurements in the classical output register
         curr_fidelity = ghz_hellinger_fidelity(pub_res.data["output"])
         curr_fidelity_std = 0.0
+        fidelities.append(curr_fidelity)
         
         fname_result = os.path.join(result_dir, curr_file_pream + "_result.yaml")
         if os.path.exists(fname_result):
@@ -145,5 +156,5 @@ if __name__ == "__main__":
             # save results to yaml file
             with open(fname_result, "w") as f:
                 yaml.dump(result_data, f)
-    
+    print(f"Achieved mean fidelity: {np.mean(fidelities)} +/- {np.std(fidelities)/np.sqrt(len(fidelities))}")
     
