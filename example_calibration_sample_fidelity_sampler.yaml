@@ -1,13 +1,13 @@
-backend_str: aer_simulator
+backend_str: ibm_brussels
 method: null
 use_premium_access: true
-run_locally: true
-execution_mode: "backend"
-coupling_map_str: "ibm_brussels"
-coupling_map_id: 1
+run_locally: false
+execution_mode: "batch"
+coupling_map_str: ""
+coupling_map_id: 0
 fname_coupling_map: "ibm_brussels_cm.pickle"
-fname_noise_model: ""
-native_basis_gates_str: "ibm_brussels"
+fname_noise_model: "ibm_brussels_nm.pickle"
+native_basis_gates_str: ""
 noise_model_id: 0
 noise_model_str: ""
 sampler_options:
